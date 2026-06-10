@@ -210,6 +210,8 @@ export default function CalendarioPage() {
                                 it.pagoId,
                                 "pagado",
                                 todayISO(),
+                              ).catch((err) =>
+                                alert("Error: " + (err?.message ?? err)),
                               )
                             }
                           >

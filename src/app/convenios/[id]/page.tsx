@@ -97,14 +97,18 @@ export default function ConvenioDetallePage() {
             {archivado ? (
               <button
                 className="btn-danger"
-                onClick={() => {
+                onClick={async () => {
                   if (
                     confirm(
                       "Eliminar definitivamente este convenio archivado? Esta accion no se puede deshacer.",
                     )
                   ) {
-                    eliminarConvenio(convenio.id);
-                    router.push("/archivo");
+                    try {
+                      await eliminarConvenio(convenio.id);
+                      router.push("/archivo");
+                    } catch (err: any) {
+                      alert("Error al eliminar: " + (err?.message ?? err));
+                    }
                   }
                 }}
               >
@@ -113,9 +117,13 @@ export default function ConvenioDetallePage() {
             ) : (
               <button
                 className="btn-ghost"
-                onClick={() => {
+                onClick={async () => {
                   if (confirm("Cancelar este convenio?")) {
-                    cancelarConvenio(convenio.id);
+                    try {
+                      await cancelarConvenio(convenio.id);
+                    } catch (err: any) {
+                      alert("Error al cancelar: " + (err?.message ?? err));
+                    }
                   }
                 }}
               >
@@ -229,15 +237,19 @@ export default function ConvenioDetallePage() {
             </button>
             <button
               className="btn-primary"
-              onClick={() => {
-                reestructurarConvenio(convenio.id, {
-                  numeroPagos: nuevoNum,
-                  montoPago: nuevoMonto,
-                  periodicidad: nuevaPer,
-                  fechaPrimerPago: nuevaFecha,
-                  observaciones: nuevasObs,
-                });
-                setReestructurar(false);
+              onClick={async () => {
+                try {
+                  await reestructurarConvenio(convenio.id, {
+                    numeroPagos: nuevoNum,
+                    montoPago: nuevoMonto,
+                    periodicidad: nuevaPer,
+                    fechaPrimerPago: nuevaFecha,
+                    observaciones: nuevasObs,
+                  });
+                  setReestructurar(false);
+                } catch (err: any) {
+                  alert("Error al reestructurar: " + (err?.message ?? err));
+                }
               }}
             >
               Aplicar reestructura
@@ -297,7 +309,10 @@ export default function ConvenioDetallePage() {
                         <button
                           className="text-xs text-ink-soft underline underline-offset-4"
                           onClick={() =>
-                            marcarPago(convenio.id, p.id, "pendiente")
+                            marcarPago(convenio.id, p.id, "pendiente").catch(
+                              (err) =>
+                                alert("Error: " + (err?.message ?? err)),
+                            )
                           }
                         >
                           Revertir
@@ -306,7 +321,14 @@ export default function ConvenioDetallePage() {
                         <button
                           className="text-xs text-ink underline underline-offset-4"
                           onClick={() =>
-                            marcarPago(convenio.id, p.id, "pagado", todayISO())
+                            marcarPago(
+                              convenio.id,
+                              p.id,
+                              "pagado",
+                              todayISO(),
+                            ).catch((err) =>
+                              alert("Error: " + (err?.message ?? err)),
+                            )
                           }
                         >
                           Marcar pagado
@@ -324,7 +346,11 @@ export default function ConvenioDetallePage() {
           <div className="mt-4 text-right">
             <button
               className="btn-secondary"
-              onClick={() => archivarConvenio(convenio.id)}
+              onClick={() =>
+                archivarConvenio(convenio.id).catch((err) =>
+                  alert("Error al archivar: " + (err?.message ?? err)),
+                )
+              }
             >
               Archivar para auditoria
             </button>

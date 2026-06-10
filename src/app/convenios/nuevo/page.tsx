@@ -40,21 +40,29 @@ function FormNuevoConvenio() {
     if (c) setDeudaTotal(c.saldoVencido);
   };
 
-  const submit = (e: React.FormEvent) => {
+  const [guardando, setGuardando] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!cuentahabienteId) return;
-    const nuevo = createConvenio({
-      cuentahabienteId,
-      deudaTotal,
-      enganche,
-      numeroPagos,
-      montoPago,
-      periodicidad,
-      fechaPrimerPago,
-      responsable,
-      observaciones,
-    });
-    router.push(`/convenios/${nuevo.id}`);
+    setGuardando(true);
+    try {
+      const nuevo = await createConvenio({
+        cuentahabienteId,
+        deudaTotal,
+        enganche,
+        numeroPagos,
+        montoPago,
+        periodicidad,
+        fechaPrimerPago,
+        responsable,
+        observaciones,
+      });
+      router.push(`/convenios/${nuevo.id}`);
+    } catch (err: any) {
+      alert("Error al crear el convenio: " + (err?.message ?? err));
+      setGuardando(false);
+    }
   };
 
   if (cuentahabientes.length === 0) {
@@ -202,8 +210,12 @@ function FormNuevoConvenio() {
               <dd>{fmtDate(fechaPrimerPago)}</dd>
             </div>
           </dl>
-          <button type="submit" className="btn-primary w-full mt-5">
-            Crear convenio
+          <button
+            type="submit"
+            className="btn-primary w-full mt-5"
+            disabled={guardando}
+          >
+            {guardando ? "Creando…" : "Crear convenio"}
           </button>
           <p className="text-[11px] text-ink-mute mt-3">
             Al crear el convenio podras imprimirlo o exportarlo como PDF desde la

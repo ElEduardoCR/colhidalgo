@@ -16,6 +16,7 @@ const empty: Omit<Cuentahabiente, "id"> = {
   saldoVencido: 0,
   mesesAdeudo: 0,
   ultimoPago: "",
+  tarifa: "",
 };
 
 export default function MorosidadPage() {
@@ -45,16 +46,25 @@ export default function MorosidadPage() {
   const tieneConvenioActivo = (id: string) =>
     convenios.some((c) => c.cuentahabienteId === id && c.estado === "activo");
 
-  const submit = (e: React.FormEvent) => {
+  const [guardando, setGuardando] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editando) {
-      updateCuentahabiente(editando, form);
-    } else {
-      addCuentahabiente(form);
+    setGuardando(true);
+    try {
+      if (editando) {
+        await updateCuentahabiente(editando, form);
+      } else {
+        await addCuentahabiente(form);
+      }
+      setForm(empty);
+      setEditando(null);
+      setMostrarForm(false);
+    } catch (err: any) {
+      alert("Error al guardar: " + (err?.message ?? err));
+    } finally {
+      setGuardando(false);
     }
-    setForm(empty);
-    setEditando(null);
-    setMostrarForm(false);
   };
 
   const editar = (c: Cuentahabiente) => {
@@ -68,6 +78,7 @@ export default function MorosidadPage() {
       saldoVencido: c.saldoVencido,
       mesesAdeudo: c.mesesAdeudo,
       ultimoPago: c.ultimoPago ?? "",
+      tarifa: c.tarifa ?? "",
     });
     setMostrarForm(true);
   };
@@ -177,6 +188,21 @@ export default function MorosidadPage() {
               required
             />
           </div>
+          <div>
+            <div className="label mb-1">Tarifa</div>
+            <select
+              className="input"
+              value={form.tarifa}
+              onChange={(e) => setForm({ ...form, tarifa: e.target.value })}
+            >
+              <option value="">Sin tarifa</option>
+              <option value="DSA">DSA</option>
+              <option value="CSA">CSA</option>
+              <option value="PAM">PAM</option>
+              <option value="EAE">EAE</option>
+              <option value="D1B">D1B</option>
+            </select>
+          </div>
           <div className="md:col-span-2 flex justify-end gap-2">
             <button
               type="button"
@@ -189,8 +215,12 @@ export default function MorosidadPage() {
             >
               Cancelar
             </button>
-            <button type="submit" className="btn-primary">
-              {editando ? "Guardar cambios" : "Agregar"}
+            <button type="submit" className="btn-primary" disabled={guardando}>
+              {guardando
+                ? "Guardando…"
+                : editando
+                  ? "Guardar cambios"
+                  : "Agregar"}
             </button>
           </div>
         </form>
@@ -216,6 +246,7 @@ export default function MorosidadPage() {
                 <th className="py-2 pr-4 font-medium">Cuenta</th>
                 <th className="py-2 pr-4 font-medium">Cuentahabiente</th>
                 <th className="py-2 pr-4 font-medium">Adeudo</th>
+                <th className="py-2 pr-4 font-medium">Tarifa</th>
                 <th className="py-2 pr-4 font-medium">Meses</th>
                 <th className="py-2 pr-4 font-medium">Ultimo pago</th>
                 <th className="py-2 pr-4 font-medium">Convenio</th>
@@ -237,6 +268,13 @@ export default function MorosidadPage() {
                   </td>
                   <td className="py-3 pr-4 font-medium">
                     {currency(c.saldoVencido)}
+                  </td>
+                  <td className="py-3 pr-4">
+                    {c.tarifa ? (
+                      <span className="chip-line">{c.tarifa}</span>
+                    ) : (
+                      <span className="text-ink-mute">-</span>
+                    )}
                   </td>
                   <td className="py-3 pr-4">{c.mesesAdeudo}</td>
                   <td className="py-3 pr-4 text-ink-soft">
@@ -263,9 +301,13 @@ export default function MorosidadPage() {
                       Editar
                     </button>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (confirm("Eliminar a " + c.nombre + "?")) {
-                          removeCuentahabiente(c.id);
+                          try {
+                            await removeCuentahabiente(c.id);
+                          } catch (err: any) {
+                            alert("Error al eliminar: " + (err?.message ?? err));
+                          }
                         }
                       }}
                       className="text-ink-mute hover:text-ink text-xs"
@@ -277,7 +319,7 @@ export default function MorosidadPage() {
               ))}
               {filtrados.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-ink-mute">
+                  <td colSpan={8} className="py-8 text-center text-ink-mute">
                     Sin resultados.
                   </td>
                 </tr>

@@ -8,6 +8,7 @@ export type Cuentahabiente = {
   saldoVencido: number;
   mesesAdeudo: number;
   ultimoPago?: string;
+  tarifa?: string;
 };
 
 export type EstadoPago = "pendiente" | "pagado" | "vencido";
