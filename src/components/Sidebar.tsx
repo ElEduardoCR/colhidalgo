@@ -9,6 +9,7 @@ const nav = [
   { href: "/convenios", label: "Convenios" },
   { href: "/convenios/nuevo", label: "Nuevo convenio" },
   { href: "/calendario", label: "Calendario de pagos" },
+  { href: "/recordatorios", label: "Recordatorios" },
   { href: "/archivo", label: "Archivo y auditoria" },
 ];
 

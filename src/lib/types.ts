@@ -41,4 +41,6 @@ export type Convenio = {
   estado: EstadoConvenio;
   pagos: PagoConvenio[];
   archivadoEn?: string;
+  recordarDiaAntes?: boolean;
+  recordarDiaDePago?: boolean;
 };

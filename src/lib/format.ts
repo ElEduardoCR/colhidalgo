@@ -38,3 +38,23 @@ export const addPeriod = (
 };
 
 export const todayISO = () => new Date().toISOString().slice(0, 10);
+
+/** Proximo dia de la semana (0=domingo..6=sabado) estrictamente despues de hoy. */
+export const proximoDiaSemana = (fromISO: string, dow: number) => {
+  const d = new Date(fromISO + "T12:00:00");
+  do {
+    d.setDate(d.getDate() + 1);
+  } while (d.getDay() !== dow);
+  return d.toISOString().slice(0, 10);
+};
+
+export const diaSemanaNombre = (dow: number) =>
+  [
+    "domingo",
+    "lunes",
+    "martes",
+    "miercoles",
+    "jueves",
+    "viernes",
+    "sabado",
+  ][dow] ?? "";

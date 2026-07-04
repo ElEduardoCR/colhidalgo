@@ -111,6 +111,8 @@ export async function getConvenios(): Promise<Convenio[]> {
     observaciones: r.observaciones ?? undefined,
     estado: r.estado,
     archivadoEn: r.archivado_en ?? undefined,
+    recordarDiaAntes: r.recordar_dia_antes ?? true,
+    recordarDiaDePago: r.recordar_dia_de_pago ?? true,
     pagos: (porConvenio.get(r.id) ?? []).sort((a, b) => a.numero - b.numero),
   }));
 }
@@ -130,6 +132,8 @@ const convenioToRow = (c: Convenio) => ({
   observaciones: c.observaciones || null,
   estado: c.estado,
   archivado_en: c.archivadoEn || null,
+  recordar_dia_antes: c.recordarDiaAntes ?? true,
+  recordar_dia_de_pago: c.recordarDiaDePago ?? true,
 });
 
 export async function insertConvenio(c: Convenio) {
@@ -155,6 +159,10 @@ export async function updateConvenioFields(id: string, patch: Partial<Convenio>)
   if (patch.estado !== undefined) row.estado = patch.estado;
   if (patch.archivadoEn !== undefined)
     row.archivado_en = patch.archivadoEn || null;
+  if (patch.recordarDiaAntes !== undefined)
+    row.recordar_dia_antes = patch.recordarDiaAntes;
+  if (patch.recordarDiaDePago !== undefined)
+    row.recordar_dia_de_pago = patch.recordarDiaDePago;
   const { error } = await supabase.from("convenios").update(row).eq("id", id);
   if (error) throw error;
 }
