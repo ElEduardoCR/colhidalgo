@@ -1,5 +1,7 @@
 export type Cuentahabiente = {
   id: string;
+  /** IdUsuario del sistema de la Junta (reporte de cortes). */
+  idUsuario?: number;
   nombre: string;
   numeroCuenta: string;
   direccion: string;
@@ -9,6 +11,24 @@ export type Cuentahabiente = {
   mesesAdeudo: number;
   ultimoPago?: string;
   tarifa?: string;
+  /** Numero de medidor; vacio cuando la toma no tiene medidor instalado. */
+  noMedidor?: string;
+  ruta?: number;
+  secuencia?: number;
+  /** Consumo del periodo en m3. */
+  consumo?: number;
+  observaciones?: string;
+  /** Fecha del reporte de cortes del que provienen los datos. */
+  fechaCorte?: string;
+};
+
+/** Tarifas del padron de la Junta. */
+export const TARIFAS: Record<string, string> = {
+  DSA: "Domestica sin alcantarillado",
+  CSA: "Comercial sin alcantarillado",
+  PAM: "Puesto / area municipal",
+  EAE: "Escuela o entidad publica",
+  D1B: "Domestica 1B",
 };
 
 export type EstadoPago = "pendiente" | "pagado" | "vencido";

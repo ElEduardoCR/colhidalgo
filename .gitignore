@@ -33,3 +33,6 @@ next-env.d.ts.bak
 
 # vercel
 .vercel
+
+# padron con datos personales de cuentahabientes (no debe subirse a un repo publico)
+/supabase/datos_privados/

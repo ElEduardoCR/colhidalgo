@@ -4,6 +4,7 @@ import type { Convenio, Cuentahabiente, EstadoPago, PagoConvenio } from "./types
 // ===== Mapeos fila <-> objeto =====
 const rowToCuenta = (r: any): Cuentahabiente => ({
   id: r.id,
+  idUsuario: r.id_usuario ?? undefined,
   nombre: r.nombre,
   numeroCuenta: r.numero_cuenta,
   direccion: r.direccion ?? "",
@@ -13,10 +14,17 @@ const rowToCuenta = (r: any): Cuentahabiente => ({
   mesesAdeudo: r.meses_adeudo ?? 0,
   ultimoPago: r.ultimo_pago ?? "",
   tarifa: r.tarifa ?? "",
+  noMedidor: r.no_medidor ?? "",
+  ruta: r.ruta ?? undefined,
+  secuencia: r.secuencia ?? undefined,
+  consumo: r.consumo ?? undefined,
+  observaciones: r.observaciones ?? "",
+  fechaCorte: r.fecha_corte ?? undefined,
 });
 
 const cuentaToRow = (c: Cuentahabiente) => ({
   id: c.id,
+  id_usuario: c.idUsuario ?? null,
   nombre: c.nombre,
   numero_cuenta: c.numeroCuenta,
   direccion: c.direccion || null,
@@ -26,6 +34,12 @@ const cuentaToRow = (c: Cuentahabiente) => ({
   meses_adeudo: c.mesesAdeudo,
   ultimo_pago: c.ultimoPago || null,
   tarifa: c.tarifa || null,
+  no_medidor: c.noMedidor || null,
+  ruta: c.ruta ?? null,
+  secuencia: c.secuencia ?? null,
+  consumo: c.consumo ?? null,
+  observaciones: c.observaciones || null,
+  fecha_corte: c.fechaCorte || null,
 });
 
 const rowToPago = (r: any): PagoConvenio => ({
@@ -54,7 +68,7 @@ export async function getCuentahabientes(): Promise<Cuentahabiente[]> {
   const { data, error } = await supabase
     .from("cuentahabientes")
     .select("*")
-    .order("nombre");
+    .order("saldo_vencido", { ascending: false });
   if (error) throw error;
   return (data ?? []).map(rowToCuenta);
 }

@@ -1,13 +1,17 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { StoreProvider } from "@/lib/store";
 import { Sidebar } from "@/components/Sidebar";
 import { LoadingGate } from "@/components/LoadingGate";
 
 export const metadata: Metadata = {
-  title: "Junta Rural de Agua y Saneamiento",
+  title: "Junta Rural de Agua Potable - Col. Hidalgo",
   description:
-    "Sistema de morosidad y convenios de pago para la Junta Rural de Agua y Saneamiento.",
+    "Sistema de morosidad y convenios de pago de la Junta Rural de Agua Potable de Col. Hidalgo.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0e2b4e",
 };
 
 export default function RootLayout({
@@ -17,12 +21,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className="min-h-screen font-sans">
+      <body className="min-h-screen bg-pizarra-bg font-sans text-marino-800">
         <StoreProvider>
-          <div className="flex min-h-screen">
+          <div className="flex min-h-screen flex-col md:flex-row">
             <Sidebar />
-            <main className="flex-1 px-6 py-8 md:px-10 md:py-10 max-w-6xl mx-auto w-full">
-              <LoadingGate>{children}</LoadingGate>
+            <main className="w-full min-w-0 flex-1 px-4 py-7 sm:px-6 md:px-8 md:py-10 lg:px-12">
+              <div className="mx-auto w-full max-w-6xl">
+                <LoadingGate>{children}</LoadingGate>
+              </div>
             </main>
           </div>
         </StoreProvider>

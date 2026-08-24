@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/PageHeader";
 import { currency, fmtDate, todayISO } from "@/lib/format";
+import { IconTelefono, IconWhatsApp } from "@/components/icons";
 
 const limpiarTel = (t: string) => t.replace(/\D/g, "");
 
@@ -64,9 +65,9 @@ export default function RecordatoriosPage() {
 
   const mensaje = (r: Recordatorio) => {
     if (r.tipo === "dia-antes") {
-      return `Hola ${r.nombre}, le saluda la Junta Rural de Agua y Saneamiento. Le recordamos que manana ${fmtDate(r.fecha)} vence su pago de ${currency(r.monto)} (convenio ${r.folio}, pago ${r.numero}/${r.total}). Gracias.`;
+      return `Hola ${r.nombre}, le saluda la Junta Rural de Agua Potable de Col. Hidalgo. Le recordamos que manana ${fmtDate(r.fecha)} vence su pago de ${currency(r.monto)} (convenio ${r.folio}, pago ${r.numero}/${r.total}). Gracias.`;
     }
-    return `Hola ${r.nombre}, le saluda la Junta Rural de Agua y Saneamiento. Le recordamos que hoy ${fmtDate(r.fecha)} es el dia de su pago de ${currency(r.monto)} (convenio ${r.folio}, pago ${r.numero}/${r.total}). Gracias.`;
+    return `Hola ${r.nombre}, le saluda la Junta Rural de Agua Potable de Col. Hidalgo. Le recordamos que hoy ${fmtDate(r.fecha)} es el dia de su pago de ${currency(r.monto)} (convenio ${r.folio}, pago ${r.numero}/${r.total}). Gracias.`;
   };
 
   const grupos = [
@@ -87,11 +88,11 @@ export default function RecordatoriosPage() {
       <PageHeader
         eyebrow="Recordatorios"
         title="Avisos por WhatsApp"
-        subtitle="Segun lo acordado en cada convenio: un dia antes y el dia del pago. Haz clic para enviar el mensaje ya redactado."
+        subtitle="Segun lo acordado en cada convenio: un dia antes y el dia del pago. Toca para enviar el mensaje ya redactado."
       />
 
       {recordatorios.length === 0 ? (
-        <div className="card p-12 text-center text-ink-mute">
+        <div className="card p-14 text-center text-sm text-pizarra-mute">
           No hay recordatorios para hoy ni para manana.
         </div>
       ) : (
@@ -103,12 +104,12 @@ export default function RecordatoriosPage() {
               <section key={g.tipo} className="card p-5">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h2 className="text-sm font-semibold">{g.titulo}</h2>
-                    <div className="text-xs text-ink-mute">{g.subtitulo}</div>
+                    <h2 className="text-sm font-semibold text-marino-900">{g.titulo}</h2>
+                    <div className="text-xs text-pizarra-mute">{g.subtitulo}</div>
                   </div>
-                  <span className="chip-line">{lista.length}</span>
+                  <span className="chip-aqua">{lista.length}</span>
                 </div>
-                <ul className="divide-y divide-paper-line">
+                <ul className="divide-y divide-pizarra-line">
                   {lista.map((r) => {
                     const tel = limpiarTel(r.telefono);
                     const wa = `https://wa.me/${tel}?text=${encodeURIComponent(
@@ -120,10 +121,10 @@ export default function RecordatoriosPage() {
                         className="py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
                       >
                         <div>
-                          <div className="font-medium">{r.nombre}</div>
-                          <div className="text-xs text-ink-mute">
-                            {r.folio} - pago {r.numero}/{r.total} -{" "}
-                            {currency(r.monto)} - {fmtDate(r.fecha)}
+                          <div className="font-medium text-marino-900">{r.nombre}</div>
+                          <div className="text-xs text-pizarra-mute">
+                            {r.folio} · pago {r.numero}/{r.total} ·{" "}
+                            {currency(r.monto)} · {fmtDate(r.fecha)}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -132,9 +133,9 @@ export default function RecordatoriosPage() {
                               href={wa}
                               target="_blank"
                               rel="noreferrer"
-                              className="btn-primary text-xs"
+                              className="btn-secondary text-xs"
                             >
-                              WhatsApp
+                              <IconWhatsApp /> WhatsApp
                             </a>
                           ) : (
                             <span className="chip-line" title="Sin telefono">
@@ -146,7 +147,7 @@ export default function RecordatoriosPage() {
                               href={`tel:+${tel}`}
                               className="btn-secondary text-xs"
                             >
-                              Llamar
+                              <IconTelefono /> Llamar
                             </a>
                           )}
                           <Link
@@ -156,7 +157,7 @@ export default function RecordatoriosPage() {
                             Ver convenio
                           </Link>
                           <button
-                            className="btn-secondary text-xs"
+                            className="btn-aqua text-xs"
                             onClick={() =>
                               marcarPago(
                                 r.convenioId,

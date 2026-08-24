@@ -1,21 +1,41 @@
+type Tono = "marino" | "aqua" | "exito" | "alerta";
+
+const tonos: Record<Tono, { barra: string; valor: string }> = {
+  marino: { barra: "bg-marino-800", valor: "text-marino-900" },
+  aqua: { barra: "bg-aqua-500", valor: "text-marino-900" },
+  exito: { barra: "bg-exito", valor: "text-exito-ink" },
+  alerta: { barra: "bg-alerta", valor: "text-alerta-ink" },
+};
+
 export function Stat({
   label,
   value,
   hint,
+  tono = "marino",
+  icon,
 }: {
   label: string;
   value: string;
   hint?: string;
+  tono?: Tono;
+  icon?: React.ReactNode;
 }) {
+  const t = tonos[tono];
   return (
-    <div className="card p-5">
-      <div className="text-[11px] uppercase tracking-widest text-ink-mute">
-        {label}
+    <div className="card-hover relative overflow-hidden p-5">
+      <span className={"absolute inset-x-0 top-0 h-1 " + t.barra} />
+      <div className="flex items-start justify-between gap-3">
+        <div className="label">{label}</div>
+        {icon && <span className="text-aqua-500">{icon}</span>}
       </div>
-      <div className="mt-2 text-2xl font-semibold tracking-tight text-ink">
+      <div
+        className={
+          "mt-2 text-[26px] font-semibold leading-none tracking-tight " + t.valor
+        }
+      >
         {value}
       </div>
-      {hint && <div className="mt-1 text-xs text-ink-mute">{hint}</div>}
+      {hint && <div className="mt-2 text-xs text-pizarra-mute">{hint}</div>}
     </div>
   );
 }

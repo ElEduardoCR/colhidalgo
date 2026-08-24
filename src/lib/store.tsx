@@ -114,8 +114,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const addCuentahabiente: Ctx["addCuentahabiente"] = useCallback(async (c) => {
     const nuevo: Cuentahabiente = { ...c, id: `c-${Date.now()}` };
     await api.insertCuentahabiente(nuevo);
+    // Mismo orden que la consulta: mayor adeudo primero.
     setCuentahabientes((s) =>
-      [nuevo, ...s].sort((a, b) => a.nombre.localeCompare(b.nombre)),
+      [nuevo, ...s].sort((a, b) => b.saldoVencido - a.saldoVencido),
     );
     return nuevo;
   }, []);

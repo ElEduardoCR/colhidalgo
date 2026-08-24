@@ -8,48 +8,96 @@
 
 html,
 body {
-  background-color: #fbfbfd;
-  color: #1d1d1f;
+  background-color: theme("colors.pizarra.bg");
+  color: theme("colors.marino.800");
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+::selection {
+  background-color: theme("colors.aqua.200");
+  color: theme("colors.marino.900");
+}
+
 @layer components {
+  /* ===== Superficies ===== */
   .card {
-    @apply bg-white border border-paper-line rounded-2xl shadow-card;
+    @apply bg-white border border-pizarra-line rounded-2xl shadow-card;
   }
+  .card-hover {
+    @apply card transition hover:shadow-cardHover hover:border-aqua-200;
+  }
+  /* Tarjeta destacada con el azul marino institucional */
+  .card-marino {
+    @apply rounded-2xl bg-marino-grad text-white shadow-marino;
+  }
+
+  /* ===== Botones ===== */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-aqua-400 focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-primary {
-    @apply btn bg-ink text-white hover:bg-black active:bg-black/90;
+    @apply btn bg-marino-800 text-white shadow-sm hover:bg-marino-900 active:bg-marino-950;
+  }
+  .btn-aqua {
+    @apply btn bg-aqua-500 text-white shadow-sm hover:bg-aqua-600 active:bg-aqua-700;
   }
   .btn-secondary {
-    @apply btn bg-paper-mute text-ink hover:bg-paper-line;
+    @apply btn bg-pizarra-fill text-marino-800 border border-pizarra-line hover:bg-aqua-50 hover:border-aqua-200;
   }
   .btn-ghost {
-    @apply btn text-ink hover:bg-paper-mute;
+    @apply btn text-marino-700 hover:bg-pizarra-fill;
   }
   .btn-danger {
-    @apply btn bg-white text-ink border border-paper-line hover:bg-paper-mute;
+    @apply btn bg-white text-alerta-ink border border-alerta/30 hover:bg-alerta-soft;
   }
+
+  /* ===== Formularios ===== */
   .input {
-    @apply w-full rounded-xl border border-paper-line bg-white px-3 py-2 text-sm text-ink placeholder:text-ink-mute focus:outline-none focus:ring-2 focus:ring-ink/10 focus:border-ink/40;
+    @apply w-full rounded-xl border border-pizarra-line bg-white px-3 py-2 text-sm text-marino-800
+           placeholder:text-pizarra-mute transition
+           focus:outline-none focus:border-aqua-400 focus:ring-2 focus:ring-aqua-400/25;
   }
   .label {
-    @apply text-xs font-medium uppercase tracking-wide text-ink-mute;
+    @apply text-[11px] font-semibold uppercase tracking-wider text-pizarra-mute;
   }
+
+  /* ===== Etiquetas de estado ===== */
   .chip {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap;
   }
-  .chip-ok {
-    @apply chip bg-paper-mute text-ink;
+  .chip-ok,
+  .chip-exito {
+    @apply chip bg-exito-soft text-exito-ink;
   }
+  .chip-alerta {
+    @apply chip bg-alerta-soft text-alerta-ink;
+  }
+  .chip-aviso,
   .chip-warn {
-    @apply chip bg-ink text-white;
+    @apply chip bg-aviso-soft text-aviso-ink;
+  }
+  .chip-aqua {
+    @apply chip bg-aqua-50 text-aqua-800 border border-aqua-200;
+  }
+  .chip-marino {
+    @apply chip bg-marino-800 text-white;
   }
   .chip-line {
-    @apply chip border border-paper-line text-ink-soft;
+    @apply chip border border-pizarra-line bg-white text-pizarra-soft;
+  }
+
+  /* ===== Tablas ===== */
+  .th {
+    @apply py-2.5 pr-4 text-left text-[11px] font-semibold uppercase tracking-wider text-pizarra-mute;
+  }
+  .tr-row {
+    @apply border-b border-pizarra-line last:border-0 transition hover:bg-aqua-50/40;
+  }
+  .link {
+    @apply text-aqua-700 font-medium underline underline-offset-4 decoration-aqua-300 hover:text-marino-800 hover:decoration-marino-400;
   }
 }
 
@@ -63,5 +111,7 @@ body {
   .print-page {
     padding: 1in !important;
     max-width: 100% !important;
+    box-shadow: none !important;
+    border: 0 !important;
   }
 }

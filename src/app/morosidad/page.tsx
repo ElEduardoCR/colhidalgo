@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/PageHeader";
+import { Stat } from "@/components/Stat";
 import { currency, fmtDate } from "@/lib/format";
-import type { Cuentahabiente } from "@/lib/types";
+import { TARIFAS, type Cuentahabiente } from "@/lib/types";
+import { IconBuscar } from "@/components/icons";
 
 const empty: Omit<Cuentahabiente, "id"> = {
   nombre: "",
@@ -17,7 +19,14 @@ const empty: Omit<Cuentahabiente, "id"> = {
   mesesAdeudo: 0,
   ultimoPago: "",
   tarifa: "",
+  noMedidor: "",
+  consumo: undefined,
+  observaciones: "",
 };
+
+const POR_PAGINA = 40;
+
+type Orden = "adeudo" | "nombre" | "antiguedad" | "ruta";
 
 export default function MorosidadPage() {
   const {
@@ -27,36 +36,64 @@ export default function MorosidadPage() {
     removeCuentahabiente,
     convenios,
   } = useStore();
+
   const [filtro, setFiltro] = useState("");
+  const [tarifa, setTarifa] = useState("");
+  const [soloSinConvenio, setSoloSinConvenio] = useState(false);
+  const [orden, setOrden] = useState<Orden>("adeudo");
+  const [visibles, setVisibles] = useState(POR_PAGINA);
+
   const [editando, setEditando] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<Cuentahabiente, "id">>(empty);
   const [mostrarForm, setMostrarForm] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+
+  const conConvenioActivo = useMemo(
+    () =>
+      new Set(
+        convenios
+          .filter((c) => c.estado === "activo")
+          .map((c) => c.cuentahabienteId),
+      ),
+    [convenios],
+  );
 
   const filtrados = useMemo(() => {
     const q = filtro.trim().toLowerCase();
-    if (!q) return cuentahabientes;
-    return cuentahabientes.filter(
-      (c) =>
+    const lista = cuentahabientes.filter((c) => {
+      if (tarifa && (c.tarifa ?? "") !== tarifa) return false;
+      if (soloSinConvenio && conConvenioActivo.has(c.id)) return false;
+      if (!q) return true;
+      return (
         c.nombre.toLowerCase().includes(q) ||
         c.numeroCuenta.toLowerCase().includes(q) ||
-        c.telefono.includes(q),
-    );
-  }, [cuentahabientes, filtro]);
+        (c.direccion ?? "").toLowerCase().includes(q) ||
+        (c.noMedidor ?? "").toLowerCase().includes(q) ||
+        (c.telefono ?? "").includes(q)
+      );
+    });
 
-  const tieneConvenioActivo = (id: string) =>
-    convenios.some((c) => c.cuentahabienteId === id && c.estado === "activo");
+    const ordenar: Record<Orden, (a: Cuentahabiente, b: Cuentahabiente) => number> =
+      {
+        adeudo: (a, b) => b.saldoVencido - a.saldoVencido,
+        nombre: (a, b) => a.nombre.localeCompare(b.nombre, "es"),
+        antiguedad: (a, b) => (a.ultimoPago ?? "").localeCompare(b.ultimoPago ?? ""),
+        ruta: (a, b) =>
+          (a.ruta ?? 0) - (b.ruta ?? 0) || (a.secuencia ?? 0) - (b.secuencia ?? 0),
+      };
+    return [...lista].sort(ordenar[orden]);
+  }, [cuentahabientes, filtro, tarifa, soloSinConvenio, conConvenioActivo, orden]);
 
-  const [guardando, setGuardando] = useState(false);
+  const totalFiltrado = filtrados.reduce((s, c) => s + c.saldoVencido, 0);
+  const sinConvenio = filtrados.filter((c) => !conConvenioActivo.has(c.id)).length;
+  const fechaCorte = cuentahabientes.find((c) => c.fechaCorte)?.fechaCorte;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setGuardando(true);
     try {
-      if (editando) {
-        await updateCuentahabiente(editando, form);
-      } else {
-        await addCuentahabiente(form);
-      }
+      if (editando) await updateCuentahabiente(editando, form);
+      else await addCuentahabiente(form);
       setForm(empty);
       setEditando(null);
       setMostrarForm(false);
@@ -69,26 +106,25 @@ export default function MorosidadPage() {
 
   const editar = (c: Cuentahabiente) => {
     setEditando(c.id);
-    setForm({
-      nombre: c.nombre,
-      numeroCuenta: c.numeroCuenta,
-      direccion: c.direccion,
-      telefono: c.telefono,
-      email: c.email ?? "",
-      saldoVencido: c.saldoVencido,
-      mesesAdeudo: c.mesesAdeudo,
-      ultimoPago: c.ultimoPago ?? "",
-      tarifa: c.tarifa ?? "",
-    });
+    const { id, ...resto } = c;
+    setForm({ ...empty, ...resto });
     setMostrarForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  const set = (patch: Partial<Cuentahabiente>) =>
+    setForm((f) => ({ ...f, ...patch }));
 
   return (
     <>
       <PageHeader
-        eyebrow="Cartera"
+        eyebrow="Padron"
         title="Morosidad"
-        subtitle="Cuentahabientes con saldo vencido. Da de alta o actualiza la informacion."
+        subtitle={
+          fechaCorte
+            ? `Cuentas con saldo vencido segun el reporte de cortes del ${fmtDate(fechaCorte)}.`
+            : "Cuentas con saldo vencido."
+        }
         actions={
           <button
             className="btn-primary"
@@ -103,53 +139,80 @@ export default function MorosidadPage() {
         }
       />
 
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Stat
+          label="Adeudo filtrado"
+          value={currency(totalFiltrado)}
+          hint={`${filtrados.length} de ${cuentahabientes.length} cuentas`}
+          tono="marino"
+        />
+        <Stat
+          label="Sin convenio"
+          value={String(sinConvenio)}
+          hint="Cuentas por gestionar"
+          tono={sinConvenio ? "alerta" : "exito"}
+        />
+        <Stat
+          label="Adeudo promedio"
+          value={currency(filtrados.length ? totalFiltrado / filtrados.length : 0)}
+          hint="Por cuenta filtrada"
+          tono="aqua"
+        />
+      </div>
+
       {mostrarForm && (
-        <form onSubmit={submit} className="card p-5 mb-6 grid gap-3 md:grid-cols-2">
+        <form onSubmit={submit} className="card mb-6 grid gap-4 p-5 md:grid-cols-3">
+          <h2 className="text-sm font-semibold text-marino-900 md:col-span-3">
+            {editando ? "Editar cuenta" : "Nueva cuenta"}
+          </h2>
+
           <div className="md:col-span-2">
             <div className="label mb-1">Nombre completo</div>
             <input
               className="input"
               value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              onChange={(e) => set({ nombre: e.target.value })}
               required
             />
           </div>
           <div>
             <div className="label mb-1">Numero de cuenta</div>
             <input
-              className="input"
+              className="input font-mono"
               value={form.numeroCuenta}
-              onChange={(e) =>
-                setForm({ ...form, numeroCuenta: e.target.value })
-              }
+              onChange={(e) => set({ numeroCuenta: e.target.value })}
               required
             />
           </div>
-          <div>
-            <div className="label mb-1">Telefono (con clave pais)</div>
-            <input
-              className="input"
-              placeholder="5215512345678"
-              value={form.telefono}
-              onChange={(e) => setForm({ ...form, telefono: e.target.value })}
-              required
-            />
-          </div>
+
           <div className="md:col-span-2">
-            <div className="label mb-1">Direccion</div>
+            <div className="label mb-1">Domicilio</div>
             <input
               className="input"
               value={form.direccion}
-              onChange={(e) => setForm({ ...form, direccion: e.target.value })}
+              onChange={(e) => set({ direccion: e.target.value })}
             />
           </div>
           <div>
-            <div className="label mb-1">Correo electronico</div>
+            <div className="label mb-1">No. de medidor</div>
+            <input
+              className="input font-mono"
+              value={form.noMedidor ?? ""}
+              onChange={(e) => set({ noMedidor: e.target.value })}
+              placeholder="Sin medidor"
+            />
+          </div>
+
+          <div>
+            <div className="label mb-1">Adeudo (MXN)</div>
             <input
               className="input"
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              type="number"
+              min={0}
+              step="0.01"
+              value={form.saldoVencido}
+              onChange={(e) => set({ saldoVencido: Number(e.target.value) })}
+              required
             />
           </div>
           <div>
@@ -157,22 +220,8 @@ export default function MorosidadPage() {
             <input
               className="input"
               type="date"
-              value={form.ultimoPago}
-              onChange={(e) => setForm({ ...form, ultimoPago: e.target.value })}
-            />
-          </div>
-          <div>
-            <div className="label mb-1">Saldo vencido (MXN)</div>
-            <input
-              className="input"
-              type="number"
-              min={0}
-              step="0.01"
-              value={form.saldoVencido}
-              onChange={(e) =>
-                setForm({ ...form, saldoVencido: Number(e.target.value) })
-              }
-              required
+              value={form.ultimoPago ?? ""}
+              onChange={(e) => set({ ultimoPago: e.target.value })}
             />
           </div>
           <div>
@@ -182,28 +231,100 @@ export default function MorosidadPage() {
               type="number"
               min={0}
               value={form.mesesAdeudo}
-              onChange={(e) =>
-                setForm({ ...form, mesesAdeudo: Number(e.target.value) })
-              }
+              onChange={(e) => set({ mesesAdeudo: Number(e.target.value) })}
               required
             />
           </div>
+
           <div>
             <div className="label mb-1">Tarifa</div>
             <select
               className="input"
-              value={form.tarifa}
-              onChange={(e) => setForm({ ...form, tarifa: e.target.value })}
+              value={form.tarifa ?? ""}
+              onChange={(e) => set({ tarifa: e.target.value })}
             >
               <option value="">Sin tarifa</option>
-              <option value="DSA">DSA</option>
-              <option value="CSA">CSA</option>
-              <option value="PAM">PAM</option>
-              <option value="EAE">EAE</option>
-              <option value="D1B">D1B</option>
+              {Object.entries(TARIFAS).map(([clave, desc]) => (
+                <option key={clave} value={clave}>
+                  {clave} — {desc}
+                </option>
+              ))}
             </select>
           </div>
-          <div className="md:col-span-2 flex justify-end gap-2">
+          <div>
+            <div className="label mb-1">Consumo (m³)</div>
+            <input
+              className="input"
+              type="number"
+              min={0}
+              value={form.consumo ?? ""}
+              onChange={(e) =>
+                set({
+                  consumo: e.target.value === "" ? undefined : Number(e.target.value),
+                })
+              }
+            />
+          </div>
+          <div>
+            <div className="label mb-1">Ruta / Secuencia</div>
+            <div className="flex gap-2">
+              <input
+                className="input"
+                type="number"
+                min={0}
+                placeholder="Ruta"
+                value={form.ruta ?? ""}
+                onChange={(e) =>
+                  set({
+                    ruta: e.target.value === "" ? undefined : Number(e.target.value),
+                  })
+                }
+              />
+              <input
+                className="input"
+                type="number"
+                min={0}
+                placeholder="Sec."
+                value={form.secuencia ?? ""}
+                onChange={(e) =>
+                  set({
+                    secuencia:
+                      e.target.value === "" ? undefined : Number(e.target.value),
+                  })
+                }
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="label mb-1">Telefono (WhatsApp)</div>
+            <input
+              className="input"
+              inputMode="tel"
+              placeholder="5216391234567"
+              value={form.telefono}
+              onChange={(e) => set({ telefono: e.target.value })}
+            />
+          </div>
+          <div>
+            <div className="label mb-1">Correo electronico</div>
+            <input
+              className="input"
+              type="email"
+              value={form.email ?? ""}
+              onChange={(e) => set({ email: e.target.value })}
+            />
+          </div>
+          <div>
+            <div className="label mb-1">Observaciones</div>
+            <input
+              className="input"
+              value={form.observaciones ?? ""}
+              onChange={(e) => set({ observaciones: e.target.value })}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 md:col-span-3">
             <button
               type="button"
               className="btn-ghost"
@@ -216,87 +337,139 @@ export default function MorosidadPage() {
               Cancelar
             </button>
             <button type="submit" className="btn-primary" disabled={guardando}>
-              {guardando
-                ? "Guardando…"
-                : editando
-                  ? "Guardar cambios"
-                  : "Agregar"}
+              {guardando ? "Guardando…" : editando ? "Guardar cambios" : "Agregar"}
             </button>
           </div>
         </form>
       )}
 
       <div className="card p-5">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-          <input
-            className="input md:max-w-sm"
-            placeholder="Buscar por nombre, cuenta o telefono"
-            value={filtro}
-            onChange={(e) => setFiltro(e.target.value)}
-          />
-          <div className="text-xs text-ink-mute">
-            {filtrados.length} cuenta(s)
+        {/* ---- Filtros ---- */}
+        <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative flex-1">
+            <IconBuscar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-pizarra-mute" />
+            <input
+              className="input pl-9"
+              placeholder="Buscar por nombre, cuenta, domicilio o medidor"
+              value={filtro}
+              onChange={(e) => {
+                setFiltro(e.target.value);
+                setVisibles(POR_PAGINA);
+              }}
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              className="input w-auto"
+              value={tarifa}
+              onChange={(e) => setTarifa(e.target.value)}
+            >
+              <option value="">Todas las tarifas</option>
+              {Object.keys(TARIFAS).map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <select
+              className="input w-auto"
+              value={orden}
+              onChange={(e) => setOrden(e.target.value as Orden)}
+            >
+              <option value="adeudo">Mayor adeudo</option>
+              <option value="antiguedad">Pago mas antiguo</option>
+              <option value="nombre">Nombre (A-Z)</option>
+              <option value="ruta">Ruta y secuencia</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => setSoloSinConvenio((v) => !v)}
+              className={
+                "rounded-full px-3.5 py-2 text-xs font-semibold transition " +
+                (soloSinConvenio
+                  ? "bg-marino-800 text-white"
+                  : "border border-pizarra-line bg-white text-pizarra-soft hover:border-aqua-300")
+              }
+            >
+              Sin convenio
+            </button>
           </div>
         </div>
 
-        <div className="overflow-x-auto -mx-5 px-5">
+        {/* ---- Tabla ---- */}
+        <div className="-mx-5 overflow-x-auto px-5">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-ink-mute border-b border-paper-line">
-                <th className="py-2 pr-4 font-medium">Cuenta</th>
-                <th className="py-2 pr-4 font-medium">Cuentahabiente</th>
-                <th className="py-2 pr-4 font-medium">Adeudo</th>
-                <th className="py-2 pr-4 font-medium">Tarifa</th>
-                <th className="py-2 pr-4 font-medium">Meses</th>
-                <th className="py-2 pr-4 font-medium">Ultimo pago</th>
-                <th className="py-2 pr-4 font-medium">Convenio</th>
-                <th className="py-2 pr-4 font-medium text-right">Acciones</th>
+              <tr className="border-b border-pizarra-line">
+                <th className="th">Cuenta</th>
+                <th className="th">Cuentahabiente</th>
+                <th className="th text-right">Adeudo</th>
+                <th className="th">Tarifa</th>
+                <th className="th text-right">Consumo</th>
+                <th className="th">Ultimo pago</th>
+                <th className="th">Medidor</th>
+                <th className="th">Convenio</th>
+                <th className="th text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {filtrados.map((c) => (
-                <tr
-                  key={c.id}
-                  className="border-b border-paper-line last:border-0"
-                >
-                  <td className="py-3 pr-4 font-mono text-xs">
+              {filtrados.slice(0, visibles).map((c) => (
+                <tr key={c.id} className="tr-row">
+                  <td className="py-3 pr-4 font-mono text-xs text-pizarra-soft">
                     {c.numeroCuenta}
+                    {c.ruta != null && (
+                      <div className="text-[10px] text-pizarra-mute">
+                        R{c.ruta} · S{c.secuencia ?? "—"}
+                      </div>
+                    )}
                   </td>
                   <td className="py-3 pr-4">
-                    <div className="font-medium">{c.nombre}</div>
-                    <div className="text-xs text-ink-mute">{c.direccion}</div>
+                    <div className="font-medium text-marino-900">{c.nombre}</div>
+                    <div className="text-xs text-pizarra-mute">{c.direccion}</div>
                   </td>
-                  <td className="py-3 pr-4 font-medium">
+                  <td className="py-3 pr-4 text-right font-semibold text-marino-900">
                     {currency(c.saldoVencido)}
+                    {c.mesesAdeudo > 0 && (
+                      <div className="text-[10px] font-normal text-pizarra-mute">
+                        {c.mesesAdeudo} mes(es)
+                      </div>
+                    )}
                   </td>
                   <td className="py-3 pr-4">
                     {c.tarifa ? (
-                      <span className="chip-line">{c.tarifa}</span>
+                      <span className="chip-aqua" title={TARIFAS[c.tarifa] ?? ""}>
+                        {c.tarifa}
+                      </span>
                     ) : (
-                      <span className="text-ink-mute">-</span>
+                      <span className="text-pizarra-mute">—</span>
                     )}
                   </td>
-                  <td className="py-3 pr-4">{c.mesesAdeudo}</td>
-                  <td className="py-3 pr-4 text-ink-soft">
-                    {c.ultimoPago ? fmtDate(c.ultimoPago) : "-"}
+                  <td className="py-3 pr-4 text-right tabular-nums text-pizarra-soft">
+                    {c.consumo != null ? `${c.consumo} m³` : "—"}
+                  </td>
+                  <td className="py-3 pr-4 text-pizarra-soft">
+                    {c.ultimoPago ? fmtDate(c.ultimoPago) : "—"}
+                  </td>
+                  <td className="py-3 pr-4 font-mono text-xs text-pizarra-mute">
+                    {c.noMedidor || "sin medidor"}
                   </td>
                   <td className="py-3 pr-4">
-                    {tieneConvenioActivo(c.id) ? (
-                      <span className="chip-warn">activo</span>
+                    {conConvenioActivo.has(c.id) ? (
+                      <span className="chip-exito">activo</span>
                     ) : (
                       <span className="chip-line">sin convenio</span>
                     )}
                   </td>
-                  <td className="py-3 pr-0 text-right whitespace-nowrap">
+                  <td className="whitespace-nowrap py-3 pr-0 text-right">
                     <Link
                       href={`/convenios/nuevo?cuentahabiente=${c.id}`}
-                      className="text-ink underline underline-offset-4 mr-3 text-xs"
+                      className="link mr-3 text-xs"
                     >
-                      Crear convenio
+                      Convenio
                     </Link>
                     <button
                       onClick={() => editar(c)}
-                      className="text-ink-soft hover:text-ink text-xs mr-3"
+                      className="mr-3 text-xs text-pizarra-soft transition hover:text-marino-900"
                     >
                       Editar
                     </button>
@@ -310,7 +483,7 @@ export default function MorosidadPage() {
                           }
                         }
                       }}
-                      className="text-ink-mute hover:text-ink text-xs"
+                      className="text-xs text-pizarra-mute transition hover:text-alerta"
                     >
                       Eliminar
                     </button>
@@ -319,7 +492,7 @@ export default function MorosidadPage() {
               ))}
               {filtrados.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-ink-mute">
+                  <td colSpan={9} className="py-10 text-center text-pizarra-mute">
                     Sin resultados.
                   </td>
                 </tr>
@@ -327,6 +500,17 @@ export default function MorosidadPage() {
             </tbody>
           </table>
         </div>
+
+        {visibles < filtrados.length && (
+          <div className="mt-5 text-center">
+            <button
+              className="btn-secondary"
+              onClick={() => setVisibles((v) => v + POR_PAGINA)}
+            >
+              Mostrar mas ({filtrados.length - visibles} restantes)
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

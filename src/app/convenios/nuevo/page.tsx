@@ -1,17 +1,14 @@
 "use client";
 
 import { Suspense, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/PageHeader";
-import {
-  addPeriod,
-  currency,
-  diaSemanaNombre,
-  fmtDate,
-  proximoDiaSemana,
-  todayISO,
-} from "@/lib/format";
+import { addPeriod, currency, fmtDate, todayISO } from "@/lib/format";
+
+/** Plazos sugeridos para no capturar el numero de pagos a mano. */
+const PLAZOS = [3, 6, 9, 12, 18, 24];
 
 function FormNuevoConvenio() {
   const router = useRouter();
@@ -32,16 +29,13 @@ function FormNuevoConvenio() {
   const [fechaPrimerPago, setFechaPrimerPago] = useState<string>(
     addPeriod(todayISO(), "mensual", 1),
   );
-  const [responsable, setResponsable] = useState<string>("Encargado de morosidad");
+  const [responsable, setResponsable] = useState<string>(
+    "Encargado de morosidad",
+  );
   const [observaciones, setObservaciones] = useState<string>("");
+  const [telefono, setTelefono] = useState<string>(cuenta?.telefono ?? "");
   const [recordarDiaAntes, setRecordarDiaAntes] = useState(true);
   const [recordarDiaDePago, setRecordarDiaDePago] = useState(true);
-
-  // Estado del modo IA
-  const [promptIA, setPromptIA] = useState("");
-  const [interpretando, setInterpretando] = useState(false);
-  const [resumenIA, setResumenIA] = useState<string | null>(null);
-  const [errorIA, setErrorIA] = useState<string | null>(null);
 
   const [guardando, setGuardando] = useState(false);
 
@@ -54,62 +48,15 @@ function FormNuevoConvenio() {
   const cambiarCuenta = (id: string) => {
     setCuentahabienteId(id);
     const c = cuentahabientes.find((x) => x.id === id);
-    if (c) setDeudaTotal(c.saldoVencido);
+    if (c) {
+      setDeudaTotal(c.saldoVencido);
+      setTelefono(c.telefono ?? "");
+    }
   };
 
-  const interpretar = async () => {
-    if (!promptIA.trim() || !cuenta) return;
-    setInterpretando(true);
-    setErrorIA(null);
-    setResumenIA(null);
-    try {
-      const res = await fetch("/api/interpretar-convenio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: promptIA, cuentahabiente: cuenta }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Error al interpretar.");
-      const d = json.data;
-
-      const nuevaDeuda =
-        typeof d.deudaTotal === "number" && d.deudaTotal > 0
-          ? d.deudaTotal
-          : cuenta.saldoVencido;
-      setDeudaTotal(nuevaDeuda);
-      setEnganche(typeof d.enganche === "number" ? d.enganche : 0);
-      if (typeof d.numeroPagos === "number" && d.numeroPagos > 0)
-        setNumeroPagos(d.numeroPagos);
-      if (d.periodicidad) setPeriodicidad(d.periodicidad);
-
-      // Fecha del primer pago: dia de la semana si se indico, si no por periodo
-      if (typeof d.diaSemana === "number" && d.diaSemana >= 0 && d.diaSemana <= 6) {
-        setFechaPrimerPago(proximoDiaSemana(todayISO(), d.diaSemana));
-      } else {
-        setFechaPrimerPago(
-          addPeriod(todayISO(), d.periodicidad ?? "mensual", 1),
-        );
-      }
-
-      setRecordarDiaAntes(Boolean(d.recordarDiaAntes));
-      setRecordarDiaDePago(Boolean(d.recordarDiaDePago));
-      if (d.observaciones) setObservaciones(d.observaciones);
-
-      // Si la IA extrajo un telefono y difiere del registrado, actualizarlo
-      const tel = (d.telefono ?? "").replace(/\D/g, "");
-      if (tel && tel !== (cuenta.telefono ?? "").replace(/\D/g, "")) {
-        await updateCuentahabiente(cuenta.id, { telefono: tel });
-      }
-
-      const partes = [d.resumen];
-      if (typeof d.diaSemana === "number")
-        partes.push(`Primer pago: ${diaSemanaNombre(d.diaSemana)}.`);
-      setResumenIA(partes.filter(Boolean).join(" "));
-    } catch (err: any) {
-      setErrorIA(err?.message ?? String(err));
-    } finally {
-      setInterpretando(false);
-    }
+  const cambiarPeriodicidad = (p: typeof periodicidad) => {
+    setPeriodicidad(p);
+    setFechaPrimerPago(addPeriod(todayISO(), p, 1));
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -117,6 +64,12 @@ function FormNuevoConvenio() {
     if (!cuentahabienteId) return;
     setGuardando(true);
     try {
+      // El padron llega sin telefonos; si el encargado captura uno, se guarda
+      // en la ficha del cuentahabiente para los recordatorios por WhatsApp.
+      const tel = telefono.replace(/\D/g, "");
+      if (cuenta && tel !== (cuenta.telefono ?? "").replace(/\D/g, "")) {
+        await updateCuentahabiente(cuenta.id, { telefono: tel });
+      }
       const nuevo = await createConvenio({
         cuentahabienteId,
         deudaTotal,
@@ -152,224 +105,267 @@ function FormNuevoConvenio() {
       <PageHeader
         eyebrow="Convenios"
         title="Nuevo convenio de pago"
-        subtitle="Describe el acuerdo en lenguaje natural y la IA llena el convenio, o captura los campos manualmente. Revisa antes de crear."
+        subtitle="Captura lo acordado con el cuentahabiente. Al guardar se genera el calendario de pagos y el convenio oficial para imprimir."
       />
 
-      {/* Modo IA */}
-      <div className="card p-5 mb-6">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="chip-warn">IA</span>
-          <h2 className="text-sm font-semibold">Describir el acuerdo</h2>
-        </div>
-        <p className="text-xs text-ink-mute mb-3">
-          Ejemplo: &ldquo;El cuentahabiente quiere pagar su deuda en 6 pagos, los
-          viernes. Que le avisemos por WhatsApp un dia antes y el dia de pago. Su
-          numero es 5215512345678.&rdquo;
-        </p>
-        <div className="mb-3">
-          <div className="label mb-1">Cuentahabiente</div>
-          <select
-            className="input"
-            value={cuentahabienteId}
-            onChange={(e) => cambiarCuenta(e.target.value)}
-          >
-            {cuentahabientes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre} - cuenta {c.numeroCuenta}
-              </option>
-            ))}
-          </select>
-        </div>
-        <textarea
-          className="input min-h-[90px]"
-          placeholder="Escribe lo que se acordo con el cuentahabiente..."
-          value={promptIA}
-          onChange={(e) => setPromptIA(e.target.value)}
-        />
-        <div className="flex items-center justify-between mt-3 gap-3">
-          <div className="text-xs">
-            {errorIA && <span className="text-ink">{errorIA}</span>}
-            {resumenIA && !errorIA && (
-              <span className="text-ink-soft">
-                <span className="font-medium">Interpretado:</span> {resumenIA}
-              </span>
-            )}
-          </div>
-          <button
-            type="button"
-            className="btn-primary shrink-0"
-            onClick={interpretar}
-            disabled={interpretando || !promptIA.trim()}
-          >
-            {interpretando ? "Interpretando…" : "Interpretar con IA"}
-          </button>
-        </div>
-      </div>
-
-      <form onSubmit={submit} className="grid lg:grid-cols-3 gap-6">
-        <div className="card p-5 lg:col-span-2 grid md:grid-cols-2 gap-4">
-          <div className="md:col-span-2 text-xs text-ink-mute -mb-1">
-            Revisa y ajusta los campos antes de crear el convenio.
-          </div>
-
-          <div>
-            <div className="label mb-1">Deuda total (MXN)</div>
-            <input
-              className="input"
-              type="number"
-              min={0}
-              step="0.01"
-              value={deudaTotal}
-              onChange={(e) => setDeudaTotal(Number(e.target.value))}
-              required
-            />
-          </div>
-          <div>
-            <div className="label mb-1">Enganche (MXN)</div>
-            <input
-              className="input"
-              type="number"
-              min={0}
-              max={deudaTotal}
-              step="0.01"
-              value={enganche}
-              onChange={(e) => setEnganche(Number(e.target.value))}
-            />
-          </div>
-
-          <div>
-            <div className="label mb-1">Numero de pagos</div>
-            <input
-              className="input"
-              type="number"
-              min={1}
-              max={60}
-              value={numeroPagos}
-              onChange={(e) => setNumeroPagos(Number(e.target.value))}
-              required
-            />
-          </div>
-          <div>
-            <div className="label mb-1">Periodicidad</div>
+      <form onSubmit={submit} className="grid gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          {/* ---- Cuentahabiente ---- */}
+          <section className="card p-5">
+            <h2 className="mb-4 text-sm font-semibold text-marino-900">
+              Cuentahabiente
+            </h2>
             <select
               className="input"
-              value={periodicidad}
-              onChange={(e) => setPeriodicidad(e.target.value as any)}
+              value={cuentahabienteId}
+              onChange={(e) => cambiarCuenta(e.target.value)}
             >
-              <option value="semanal">Semanal</option>
-              <option value="quincenal">Quincenal</option>
-              <option value="mensual">Mensual</option>
+              {cuentahabientes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre} — cuenta {c.numeroCuenta} —{" "}
+                  {currency(c.saldoVencido)}
+                </option>
+              ))}
             </select>
-          </div>
+            {cuenta && (
+              <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
+                <div>
+                  <dt className="label">Domicilio</dt>
+                  <dd className="mt-0.5 text-marino-800">
+                    {cuenta.direccion || "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="label">Adeudo del padron</dt>
+                  <dd className="mt-0.5 font-semibold text-marino-900">
+                    {currency(cuenta.saldoVencido)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="label">Ultimo pago</dt>
+                  <dd className="mt-0.5 text-marino-800">
+                    {cuenta.ultimoPago ? fmtDate(cuenta.ultimoPago) : "—"}
+                  </dd>
+                </div>
+              </dl>
+            )}
+          </section>
 
-          <div>
-            <div className="label mb-1">Fecha del primer pago</div>
-            <input
-              className="input"
-              type="date"
-              value={fechaPrimerPago}
-              onChange={(e) => setFechaPrimerPago(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <div className="label mb-1">Responsable por la Junta</div>
-            <input
-              className="input"
-              value={responsable}
-              onChange={(e) => setResponsable(e.target.value)}
-              required
-            />
-          </div>
+          {/* ---- Condiciones ---- */}
+          <section className="card grid gap-4 p-5 md:grid-cols-2">
+            <h2 className="text-sm font-semibold text-marino-900 md:col-span-2">
+              Condiciones del convenio
+            </h2>
 
-          <div className="md:col-span-2">
-            <div className="label mb-1">Recordatorios por WhatsApp</div>
-            <div className="flex flex-wrap gap-4 mt-1">
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={recordarDiaAntes}
-                  onChange={(e) => setRecordarDiaAntes(e.target.checked)}
-                />
-                Avisar un dia antes
-              </label>
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={recordarDiaDePago}
-                  onChange={(e) => setRecordarDiaDePago(e.target.checked)}
-                />
-                Avisar el dia del pago
-              </label>
+            <div>
+              <div className="label mb-1">Deuda a convenir (MXN)</div>
+              <input
+                className="input"
+                type="number"
+                min={0}
+                step="0.01"
+                value={deudaTotal}
+                onChange={(e) => setDeudaTotal(Number(e.target.value))}
+                required
+              />
             </div>
-          </div>
+            <div>
+              <div className="label mb-1">Enganche (MXN)</div>
+              <input
+                className="input"
+                type="number"
+                min={0}
+                max={deudaTotal}
+                step="0.01"
+                value={enganche}
+                onChange={(e) => setEnganche(Number(e.target.value))}
+              />
+            </div>
 
-          <div className="md:col-span-2">
-            <div className="label mb-1">Observaciones</div>
-            <textarea
-              className="input min-h-[80px]"
-              value={observaciones}
-              onChange={(e) => setObservaciones(e.target.value)}
-              placeholder="Notas adicionales, condiciones especiales, etc."
-            />
-          </div>
+            <div className="md:col-span-2">
+              <div className="label mb-1.5">Periodicidad</div>
+              <div className="flex flex-wrap gap-2">
+                {(["semanal", "quincenal", "mensual"] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => cambiarPeriodicidad(p)}
+                    className={
+                      "rounded-full px-4 py-1.5 text-sm font-medium capitalize transition " +
+                      (periodicidad === p
+                        ? "bg-marino-800 text-white shadow-sm"
+                        : "border border-pizarra-line bg-white text-pizarra-soft hover:border-aqua-300 hover:text-marino-800")
+                    }
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="label mb-1.5">Numero de pagos</div>
+              <div className="flex flex-wrap items-center gap-2">
+                {PLAZOS.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setNumeroPagos(n)}
+                    className={
+                      "h-9 w-11 rounded-lg text-sm font-medium transition " +
+                      (numeroPagos === n
+                        ? "bg-aqua-500 text-white shadow-sm"
+                        : "border border-pizarra-line bg-white text-pizarra-soft hover:border-aqua-300 hover:text-marino-800")
+                    }
+                  >
+                    {n}
+                  </button>
+                ))}
+                <input
+                  className="input h-9 w-24"
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={numeroPagos}
+                  onChange={(e) => setNumeroPagos(Number(e.target.value))}
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="label mb-1">Fecha del primer pago</div>
+              <input
+                className="input"
+                type="date"
+                value={fechaPrimerPago}
+                onChange={(e) => setFechaPrimerPago(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <div className="label mb-1">Responsable por la Junta</div>
+              <input
+                className="input"
+                value={responsable}
+                onChange={(e) => setResponsable(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="label mb-1">Observaciones</div>
+              <textarea
+                className="input min-h-[80px]"
+                value={observaciones}
+                onChange={(e) => setObservaciones(e.target.value)}
+                placeholder="Condiciones especiales, acuerdos verbales, etc."
+              />
+            </div>
+          </section>
+
+          {/* ---- Contacto y recordatorios ---- */}
+          <section className="card p-5">
+            <h2 className="text-sm font-semibold text-marino-900">
+              Contacto y recordatorios
+            </h2>
+            <p className="mt-1 text-xs text-pizarra-mute">
+              El padron no incluye telefonos. Captura el numero aqui para poder
+              mandar los avisos por WhatsApp.
+            </p>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div>
+                <div className="label mb-1">Telefono (con clave de pais)</div>
+                <input
+                  className="input"
+                  inputMode="tel"
+                  placeholder="5216391234567"
+                  value={telefono}
+                  onChange={(e) => setTelefono(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col justify-center gap-2">
+                <label className="inline-flex items-center gap-2 text-sm text-marino-800">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-aqua-500"
+                    checked={recordarDiaAntes}
+                    onChange={(e) => setRecordarDiaAntes(e.target.checked)}
+                  />
+                  Avisar un dia antes
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm text-marino-800">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-aqua-500"
+                    checked={recordarDiaDePago}
+                    onChange={(e) => setRecordarDiaDePago(e.target.checked)}
+                  />
+                  Avisar el dia del pago
+                </label>
+              </div>
+            </div>
+          </section>
         </div>
 
-        <aside className="card p-5 h-fit">
-          <div className="text-sm font-semibold mb-3">Resumen</div>
-          <dl className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-ink-mute">Cuentahabiente</dt>
-              <dd className="text-right">{cuenta?.nombre}</dd>
+        {/* ---- Resumen ---- */}
+        <aside className="h-fit lg:sticky lg:top-6">
+          <div className="card-marino p-5">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-aqua-300">
+              Resumen
             </div>
-            <div className="flex justify-between">
-              <dt className="text-ink-mute">Deuda total</dt>
-              <dd>{currency(deudaTotal)}</dd>
+            <div className="mt-3 text-sm font-medium text-white">
+              {cuenta?.nombre ?? "—"}
             </div>
-            <div className="flex justify-between">
-              <dt className="text-ink-mute">Enganche</dt>
-              <dd>- {currency(enganche)}</dd>
+            <div className="text-xs text-marino-200/80">
+              Cuenta {cuenta?.numeroCuenta ?? "—"}
             </div>
-            <div className="flex justify-between border-t border-paper-line pt-2 font-medium">
-              <dt>A diferir</dt>
-              <dd>{currency(restante)}</dd>
+
+            <dl className="mt-5 space-y-2.5 text-sm text-marino-100">
+              <div className="flex justify-between">
+                <dt className="text-marino-200/80">Deuda</dt>
+                <dd>{currency(deudaTotal)}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-marino-200/80">Enganche</dt>
+                <dd>− {currency(enganche)}</dd>
+              </div>
+              <div className="flex justify-between border-t border-white/15 pt-2.5 font-medium text-white">
+                <dt>A diferir</dt>
+                <dd>{currency(restante)}</dd>
+              </div>
+            </dl>
+
+            <div className="mt-5 rounded-xl bg-white/10 p-4 text-center">
+              <div className="text-[11px] uppercase tracking-wider text-aqua-300">
+                Cada pago
+              </div>
+              <div className="mt-1 text-2xl font-semibold text-white">
+                {currency(montoPago)}
+              </div>
+              <div className="mt-1 text-xs text-marino-200/80">
+                {numeroPagos} pagos {periodicidad}es · desde el{" "}
+                {fmtDate(fechaPrimerPago)}
+              </div>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-ink-mute">Pagos</dt>
-              <dd>
-                {numeroPagos} {periodicidad}
-              </dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-ink-mute">Cada pago</dt>
-              <dd className="font-semibold">{currency(montoPago)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-ink-mute">Primer pago</dt>
-              <dd>{fmtDate(fechaPrimerPago)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-ink-mute">Recordatorios</dt>
-              <dd className="text-right text-xs">
-                {[
-                  recordarDiaAntes && "1 dia antes",
-                  recordarDiaDePago && "dia de pago",
-                ]
-                  .filter(Boolean)
-                  .join(", ") || "ninguno"}
-              </dd>
-            </div>
-          </dl>
-          <button
-            type="submit"
-            className="btn-primary w-full mt-5"
-            disabled={guardando}
-          >
-            {guardando ? "Creando…" : "Crear convenio"}
-          </button>
-          <p className="text-[11px] text-ink-mute mt-3">
+
+            <button
+              type="submit"
+              className="btn-aqua mt-5 w-full"
+              disabled={guardando}
+            >
+              {guardando ? "Creando…" : "Crear convenio"}
+            </button>
+            <Link
+              href="/morosidad"
+              className="mt-2 block text-center text-xs text-marino-200/80 hover:text-white"
+            >
+              Cancelar
+            </Link>
+          </div>
+          <p className="mt-3 px-1 text-[11px] leading-relaxed text-pizarra-mute">
             Al crear el convenio se genera el documento oficial para imprimir o
-            exportar a PDF, y el calendario de pagos con recordatorios.
+            exportar a PDF y el calendario de pagos con sus recordatorios.
           </p>
         </aside>
       </form>
@@ -379,7 +375,9 @@ function FormNuevoConvenio() {
 
 export default function NuevoConvenioPage() {
   return (
-    <Suspense fallback={<div className="text-sm text-ink-mute">Cargando…</div>}>
+    <Suspense
+      fallback={<div className="text-sm text-pizarra-mute">Cargando…</div>}
+    >
       <FormNuevoConvenio />
     </Suspense>
   );

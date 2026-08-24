@@ -46,37 +46,34 @@ export default function ArchivoPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          <div className="text-xs text-ink-mute">
+          <div className="text-xs text-pizarra-mute">
             {archivados.length} convenio(s)
           </div>
         </div>
 
         {archivados.length === 0 ? (
-          <div className="text-center py-12 text-ink-mute text-sm">
+          <div className="py-14 text-center text-sm text-pizarra-mute">
             No hay convenios archivados todavia.
           </div>
         ) : (
           <div className="overflow-x-auto -mx-5 px-5">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-ink-mute border-b border-paper-line">
-                  <th className="py-2 pr-4 font-medium">Folio</th>
-                  <th className="py-2 pr-4 font-medium">Cuentahabiente</th>
-                  <th className="py-2 pr-4 font-medium">Deuda original</th>
-                  <th className="py-2 pr-4 font-medium">Pagos</th>
-                  <th className="py-2 pr-4 font-medium">Estado</th>
-                  <th className="py-2 pr-4 font-medium">Archivado</th>
-                  <th className="py-2 font-medium text-right">Expediente</th>
+                <tr className="border-b border-pizarra-line">
+                  <th className="th">Folio</th>
+                  <th className="th">Cuentahabiente</th>
+                  <th className="th">Deuda original</th>
+                  <th className="th">Pagos</th>
+                  <th className="th">Estado</th>
+                  <th className="th">Archivado</th>
+                  <th className="th text-right">Expediente</th>
                 </tr>
               </thead>
               <tbody>
                 {archivados.map((c) => (
-                  <tr
-                    key={c.id}
-                    className="border-b border-paper-line last:border-0"
-                  >
-                    <td className="py-3 pr-4 font-mono text-xs">{c.folio}</td>
-                    <td className="py-3 pr-4 font-medium">
+                  <tr key={c.id} className="tr-row">
+                    <td className="whitespace-nowrap py-3 pr-4 font-mono text-xs text-pizarra-soft">{c.folio}</td>
+                    <td className="py-3 pr-4 font-medium text-marino-900">
                       {nombre(c.cuentahabienteId)}
                     </td>
                     <td className="py-3 pr-4">{currency(c.deudaTotal)}</td>
@@ -86,18 +83,18 @@ export default function ArchivoPage() {
                     </td>
                     <td className="py-3 pr-4">
                       {c.estado === "completado" ? (
-                        <span className="chip-warn">completado</span>
+                        <span className="chip-exito">completado</span>
                       ) : (
-                        <span className="chip-line">cancelado</span>
+                        <span className="chip-alerta">cancelado</span>
                       )}
                     </td>
-                    <td className="py-3 pr-4 text-ink-soft">
-                      {c.archivadoEn ? fmtDate(c.archivadoEn) : "-"}
+                    <td className="py-3 pr-4 text-pizarra-soft">
+                      {c.archivadoEn ? fmtDate(c.archivadoEn) : "—"}
                     </td>
                     <td className="py-3 text-right">
                       <Link
                         href={`/convenios/${c.id}`}
-                        className="text-ink underline underline-offset-4 text-xs"
+                        className="link text-xs"
                       >
                         Abrir
                       </Link>
