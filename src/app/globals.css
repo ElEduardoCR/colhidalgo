@@ -56,9 +56,10 @@ body {
 
   /* ===== Formularios ===== */
   .input {
-    @apply w-full rounded-xl border border-pizarra-line bg-white px-3 py-2 text-sm text-marino-800
+    @apply w-full rounded-xl border border-pizarra-line bg-white px-3 py-2.5 text-base text-marino-800
            placeholder:text-pizarra-mute transition
-           focus:outline-none focus:border-aqua-400 focus:ring-2 focus:ring-aqua-400/25;
+           focus:outline-none focus:border-aqua-400 focus:ring-2 focus:ring-aqua-400/25
+           lg:py-2 lg:text-sm;
   }
   .label {
     @apply text-[11px] font-semibold uppercase tracking-wider text-pizarra-mute;
@@ -96,9 +97,45 @@ body {
   .tr-row {
     @apply border-b border-pizarra-line last:border-0 transition hover:bg-aqua-50/40;
   }
+  .accion {
+    @apply inline-flex items-center rounded-lg px-2 py-1 text-xs font-medium transition;
+  }
   .link {
     @apply text-aqua-700 font-medium underline underline-offset-4 decoration-aqua-300 hover:text-marino-800 hover:decoration-marino-400;
   }
+}
+
+/* ---- iPad y pantallas tactiles ---- */
+@media (pointer: coarse) {
+  .btn {
+    min-height: 44px;
+  }
+  .accion {
+    min-height: 40px;
+    padding-left: 0.625rem;
+    padding-right: 0.625rem;
+    font-size: 0.8125rem;
+  }
+  .input {
+    font-size: 16px; /* evita el zoom automatico de Safari al enfocar */
+  }
+  table td,
+  table th {
+    padding-top: 0.9rem;
+    padding-bottom: 0.9rem;
+  }
+}
+
+/* Respeta la muesca y las esquinas cuando se instala en la pantalla de inicio */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-x {
+  padding-left: max(env(safe-area-inset-left), 0px);
+  padding-right: max(env(safe-area-inset-right), 0px);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 @media print {

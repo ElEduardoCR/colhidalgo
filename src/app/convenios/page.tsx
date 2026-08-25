@@ -168,7 +168,7 @@ export default function ConveniosPage() {
                           )}
                         </td>
                         <td className="py-3 text-right">
-                          <Link href={`/convenios/${c.id}`} className="link text-xs">
+                          <Link href={`/convenios/${c.id}`} className="accion link">
                             Abrir
                           </Link>
                         </td>

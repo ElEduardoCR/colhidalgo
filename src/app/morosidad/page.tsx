@@ -463,13 +463,13 @@ export default function MorosidadPage() {
                   <td className="whitespace-nowrap py-3 pr-0 text-right">
                     <Link
                       href={`/convenios/nuevo?cuentahabiente=${c.id}`}
-                      className="link mr-3 text-xs"
+                      className="accion link mr-1"
                     >
                       Convenio
                     </Link>
                     <button
                       onClick={() => editar(c)}
-                      className="mr-3 text-xs text-pizarra-soft transition hover:text-marino-900"
+                      className="accion mr-1 text-pizarra-soft hover:bg-pizarra-fill hover:text-marino-900"
                     >
                       Editar
                     </button>
@@ -483,7 +483,7 @@ export default function MorosidadPage() {
                           }
                         }
                       }}
-                      className="text-xs text-pizarra-mute transition hover:text-alerta"
+                      className="accion text-pizarra-mute hover:bg-alerta-soft hover:text-alerta"
                     >
                       Eliminar
                     </button>

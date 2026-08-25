@@ -30,7 +30,8 @@ export function Stat({
       </div>
       <div
         className={
-          "mt-2 text-[26px] font-semibold leading-none tracking-tight " + t.valor
+          "mt-2 break-words text-2xl font-semibold leading-tight tracking-tight tabular-nums sm:text-[26px] " +
+          t.valor
         }
       >
         {value}

@@ -94,7 +94,7 @@ export default function ArchivoPage() {
                     <td className="py-3 text-right">
                       <Link
                         href={`/convenios/${c.id}`}
-                        className="link text-xs"
+                        className="accion link"
                       >
                         Abrir
                       </Link>

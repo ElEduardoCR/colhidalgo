@@ -16,12 +16,34 @@ Junta Rural de Agua Potable de Col. Hidalgo.
   pagos vencidos y mayores adeudos.
 - **Morosidad**: padron de cuentas con saldo vencido, con busqueda, filtros por
   tarifa, orden por adeudo/antiguedad/ruta y alta, edicion y baja de cuentas.
-- **Convenios**: creacion, listado con avance, detalle con calendario de pagos,
-  reestructuracion y convenio oficial imprimible o exportable a PDF.
+- **Convenios**: alta con buscador de cuentahabiente (por nombre, numero de
+  cuenta, domicilio o medidor, sin acentos y con varias palabras), listado con
+  avance, detalle con calendario de pagos, reestructuracion y convenio oficial
+  imprimible o exportable a PDF.
 - **Calendario de pagos**: agenda por dia con accesos directos a WhatsApp y
   llamada telefonica.
 - **Recordatorios**: avisos por WhatsApp un dia antes y el dia del pago.
 - **Archivo y auditoria**: historico de convenios completados o cancelados.
+
+## Uso en iPad
+
+La app esta pensada para usarse en iPad y se puede instalar en la pantalla de
+inicio (Compartir > Anadir a pantalla de inicio). Se abre a pantalla completa,
+sin la barra de Safari.
+
+- La barra lateral aparece a partir de 1024 px (iPad horizontal). En vertical se
+  colapsa en un menu para dejarle todo el ancho al contenido.
+- Los campos usan 16 px en pantallas tactiles para que Safari no haga zoom al
+  enfocarlos, y los botones respetan el minimo de 44 px de Apple.
+- El icono y el manifest se generan con:
+
+```bash
+python3 scripts/generar_iconos.py
+```
+
+Escribe `src/app/icon.png` (favicon, solo la gota para que se lea a 16 px) y
+`src/app/apple-icon.png` mas `public/icono-*.png` (gota + JRAS + Hidalgo), que
+es lo que se ve en la pantalla de inicio.
 
 ## Scripts
 
@@ -100,6 +122,7 @@ src/
   lib/                 store, tipos, helpers de formato, cliente Supabase
 scripts/
   generar_seed.py      Excel del reporte de cortes -> SQL para Supabase
+  generar_iconos.py    iconos de la app (favicon e icono de pantalla de inicio)
 supabase/
   migrations/          migraciones versionadas
 ```

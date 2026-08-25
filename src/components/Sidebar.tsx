@@ -105,7 +105,7 @@ export function Sidebar() {
   return (
     <>
       {/* ===== Escritorio ===== */}
-      <aside className="no-print sticky top-0 hidden h-screen w-64 shrink-0 flex-col bg-marino-grad md:flex lg:w-72">
+      <aside className="no-print safe-top sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-marino-grad lg:flex xl:w-72">
         <div className="px-5 py-7">
           <Marca />
         </div>
@@ -124,7 +124,7 @@ export function Sidebar() {
       </aside>
 
       {/* ===== Movil: barra superior ===== */}
-      <header className="no-print sticky top-0 z-40 flex items-center justify-between bg-marino-grad px-4 py-3 md:hidden">
+      <header className="no-print safe-top safe-x sticky top-0 z-40 flex items-center justify-between bg-marino-grad px-4 py-3 lg:hidden">
         <Marca compacto />
         <button
           type="button"
@@ -138,12 +138,12 @@ export function Sidebar() {
 
       {/* ===== Movil: cajon ===== */}
       {abierto && (
-        <div className="no-print fixed inset-0 z-50 md:hidden">
+        <div className="no-print fixed inset-0 z-50 lg:hidden">
           <div
             className="absolute inset-0 bg-marino-950/60 backdrop-blur-sm"
             onClick={() => setAbierto(false)}
           />
-          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col bg-marino-grad shadow-marino">
+          <div className="safe-top absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col bg-marino-grad shadow-marino">
             <div className="flex items-start justify-between px-5 py-6">
               <Marca />
               <button

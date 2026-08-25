@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/PageHeader";
+import { BuscadorCuenta } from "@/components/BuscadorCuenta";
 import { addPeriod, currency, fmtDate, todayISO } from "@/lib/format";
 
 /** Plazos sugeridos para no capturar el numero de pagos a mano. */
@@ -112,43 +113,17 @@ function FormNuevoConvenio() {
         <div className="space-y-6 lg:col-span-2">
           {/* ---- Cuentahabiente ---- */}
           <section className="card p-5">
-            <h2 className="mb-4 text-sm font-semibold text-marino-900">
+            <h2 className="text-sm font-semibold text-marino-900">
               Cuentahabiente
             </h2>
-            <select
-              className="input"
-              value={cuentahabienteId}
-              onChange={(e) => cambiarCuenta(e.target.value)}
-            >
-              {cuentahabientes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre} — cuenta {c.numeroCuenta} —{" "}
-                  {currency(c.saldoVencido)}
-                </option>
-              ))}
-            </select>
-            {cuenta && (
-              <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
-                <div>
-                  <dt className="label">Domicilio</dt>
-                  <dd className="mt-0.5 text-marino-800">
-                    {cuenta.direccion || "—"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="label">Adeudo del padron</dt>
-                  <dd className="mt-0.5 font-semibold text-marino-900">
-                    {currency(cuenta.saldoVencido)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="label">Ultimo pago</dt>
-                  <dd className="mt-0.5 text-marino-800">
-                    {cuenta.ultimoPago ? fmtDate(cuenta.ultimoPago) : "—"}
-                  </dd>
-                </div>
-              </dl>
-            )}
+            <p className="mb-4 mt-1 text-xs text-pizarra-mute">
+              Busca la cuenta por nombre, numero de cuenta, domicilio o medidor.
+            </p>
+            <BuscadorCuenta
+              cuentas={cuentahabientes}
+              valorId={cuentahabienteId}
+              onSelect={cambiarCuenta}
+            />
           </section>
 
           {/* ---- Condiciones ---- */}
