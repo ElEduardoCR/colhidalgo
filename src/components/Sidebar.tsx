@@ -45,10 +45,13 @@ function Marca({ compacto = false }: { compacto?: boolean }) {
         </div>
         <div
           className={
-            "font-semibold text-white " + (compacto ? "text-sm" : "text-[15px]")
+            // "Agua y Saneamiento" cabe justo en la barra de 240px: se usa un
+            // cuerpo menor ahi y el completo cuando la barra crece en xl.
+            "font-semibold leading-snug text-white " +
+            (compacto ? "text-sm" : "text-sm xl:text-[15px]")
           }
         >
-          Agua Potable
+          Agua y Saneamiento
         </div>
         <div className="text-[11px] text-marino-200/80">Col. Hidalgo</div>
       </div>

@@ -1,5 +1,5 @@
 -- ============================================================================
--- Esquema alineado al "Reporte de cortes" de la Junta Rural de Agua Potable
+-- Esquema alineado al "Reporte de cortes" de la Junta Rural de Agua y Saneamiento
 -- de Col. Hidalgo (padron de rezago). Agrega los campos que trae el reporte:
 -- id de usuario, medidor, ruta, secuencia, consumo y fecha de corte.
 -- ============================================================================

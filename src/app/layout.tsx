@@ -5,9 +5,9 @@ import { Sidebar } from "@/components/Sidebar";
 import { LoadingGate } from "@/components/LoadingGate";
 
 export const metadata: Metadata = {
-  title: "Junta Rural de Agua Potable - Col. Hidalgo",
+  title: "Junta Rural de Agua y Saneamiento - Col. Hidalgo",
   description:
-    "Sistema de morosidad y convenios de pago de la Junta Rural de Agua Potable de Col. Hidalgo.",
+    "Sistema de morosidad y convenios de pago de la Junta Rural de Agua y Saneamiento de Col. Hidalgo.",
   applicationName: "JRAS Hidalgo",
   // Instalada en la pantalla de inicio del iPad: nombre corto bajo el icono y
   // barra de estado integrada con el azul marino de la cabecera.

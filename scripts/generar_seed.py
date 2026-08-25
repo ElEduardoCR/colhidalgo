@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Convierte el "Reporte de cortes" en Excel de la Junta Rural de Agua Potable de
+Convierte el "Reporte de cortes" en Excel de la Junta Rural de Agua y Saneamiento de
 Col. Hidalgo en SQL listo para Supabase.
 
 Uso:
@@ -141,7 +141,7 @@ def bloque_datos(registros, fecha_corte) -> str:
     total = sum(r["saldo_vencido"] for r in registros)
     filas = ",\n".join(valores)
     return f"""-- ============================================================================
--- Padron de rezago - Junta Rural de Agua Potable de Col. Hidalgo
+-- Padron de rezago - Junta Rural de Agua y Saneamiento de Col. Hidalgo
 -- Fecha de corte: {fecha_corte.isoformat()}   Cuentas: {len(registros)}   Adeudo: $ {total:,.2f} MXN
 --
 -- Generado por scripts/generar_seed.py a partir del reporte de cortes en Excel.

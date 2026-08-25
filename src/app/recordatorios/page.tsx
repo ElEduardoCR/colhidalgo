@@ -65,9 +65,9 @@ export default function RecordatoriosPage() {
 
   const mensaje = (r: Recordatorio) => {
     if (r.tipo === "dia-antes") {
-      return `Hola ${r.nombre}, le saluda la Junta Rural de Agua Potable de Col. Hidalgo. Le recordamos que manana ${fmtDate(r.fecha)} vence su pago de ${currency(r.monto)} (convenio ${r.folio}, pago ${r.numero}/${r.total}). Gracias.`;
+      return `Hola ${r.nombre}, le saluda la Junta Rural de Agua y Saneamiento de Col. Hidalgo. Le recordamos que manana ${fmtDate(r.fecha)} vence su pago de ${currency(r.monto)} (convenio ${r.folio}, pago ${r.numero}/${r.total}). Gracias.`;
     }
-    return `Hola ${r.nombre}, le saluda la Junta Rural de Agua Potable de Col. Hidalgo. Le recordamos que hoy ${fmtDate(r.fecha)} es el dia de su pago de ${currency(r.monto)} (convenio ${r.folio}, pago ${r.numero}/${r.total}). Gracias.`;
+    return `Hola ${r.nombre}, le saluda la Junta Rural de Agua y Saneamiento de Col. Hidalgo. Le recordamos que hoy ${fmtDate(r.fecha)} es el dia de su pago de ${currency(r.monto)} (convenio ${r.folio}, pago ${r.numero}/${r.total}). Gracias.`;
   };
 
   const grupos = [

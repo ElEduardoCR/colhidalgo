@@ -395,7 +395,7 @@ export default function ConvenioDetallePage() {
             </span>
             <div>
               <div className="text-[15px] font-semibold uppercase tracking-wide text-marino-900">
-                Junta Rural de Agua Potable
+                Junta Rural de Agua y Saneamiento
               </div>
               <div className="text-xs uppercase tracking-[0.18em] text-aqua-700">
                 Col. Hidalgo
@@ -412,7 +412,7 @@ export default function ConvenioDetallePage() {
 
         <div className="mt-6 text-[13px] leading-7 text-pizarra-soft">
           <p>
-            En la oficina de la Junta Rural de Agua Potable de Col. Hidalgo, a{" "}
+            En la oficina de la Junta Rural de Agua y Saneamiento de Col. Hidalgo, a{" "}
             <strong className="text-marino-900">
               {fmtDateLong(convenio.fechaCreacion)}
             </strong>

@@ -29,7 +29,7 @@ const mensajeRecordatorio = (
   fecha: string,
   folio: string,
 ) =>
-  `Hola ${nombre}, le saluda la Junta Rural de Agua Potable de Col. Hidalgo. Le recordamos su pago programado por ${currency(monto)} para el ${fmtDate(fecha)} (convenio ${folio}). Gracias.`;
+  `Hola ${nombre}, le saluda la Junta Rural de Agua y Saneamiento de Col. Hidalgo. Le recordamos su pago programado por ${currency(monto)} para el ${fmtDate(fecha)} (convenio ${folio}). Gracias.`;
 
 export default function CalendarioPage() {
   const { convenios, cuentahabientes, marcarPago } = useStore();

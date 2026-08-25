@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "JRAS Hidalgo - Morosidad y convenios",
     short_name: "JRAS Hidalgo",
     description:
-      "Sistema de morosidad y convenios de pago de la Junta Rural de Agua Potable de Col. Hidalgo.",
+      "Sistema de morosidad y convenios de pago de la Junta Rural de Agua y Saneamiento de Col. Hidalgo.",
     start_url: "/",
     display: "standalone",
     orientation: "any",

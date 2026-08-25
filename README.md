@@ -1,7 +1,7 @@
-# Col. Hidalgo — Junta Rural de Agua Potable
+# Col. Hidalgo — Junta Rural de Agua y Saneamiento
 
 Aplicacion interna para el control de morosidad y los convenios de pago de la
-Junta Rural de Agua Potable de Col. Hidalgo.
+Junta Rural de Agua y Saneamiento de Col. Hidalgo.
 
 ## Stack
 
