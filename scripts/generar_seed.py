@@ -108,7 +108,7 @@ def leer(ruta: Path):
 COLUMNAS = (
     "id, id_usuario, numero_cuenta, nombre, direccion, no_medidor, ruta, "
     "secuencia, ultimo_pago, tarifa, saldo_vencido, meses_adeudo, consumo, "
-    "fecha_corte"
+    "fecha_corte, activo"
 )
 
 
@@ -133,6 +133,7 @@ def bloque_datos(registros, fecha_corte) -> str:
                     str(r["meses_adeudo"]),
                     sql_num(r["consumo"]),
                     sql_fecha(r["fecha_corte"]),
+                    "true",
                 ]
             )
             + ")"
@@ -168,7 +169,24 @@ on conflict (numero_cuenta) do update set
   meses_adeudo  = excluded.meses_adeudo,
   consumo       = excluded.consumo,
   fecha_corte   = excluded.fecha_corte,
+  activo        = true,
   updated_at    = now();
+
+-- Queda registrado como corte para que la siguiente importacion tenga contra
+-- que comparar.
+insert into public.cortes (
+  id, fecha_corte, archivo, total_cuentas, total_adeudo, notas
+) values (
+  'corte-{fecha_corte.isoformat()}-base',
+  '{fecha_corte.isoformat()}',
+  'carga inicial del padron',
+  {len(registros)},
+  {total:.2f},
+  'Linea base cargada con scripts/generar_seed.py'
+)
+on conflict (id) do update set
+  total_cuentas = excluded.total_cuentas,
+  total_adeudo  = excluded.total_adeudo;
 """
 
 

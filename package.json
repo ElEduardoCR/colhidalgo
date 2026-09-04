@@ -12,7 +12,8 @@
     "@supabase/supabase-js": "^2.45.4",
     "next": "^16.2.9",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "read-excel-file": "^9.3.10"
   },
   "devDependencies": {
     "@types/node": "^20.16.10",

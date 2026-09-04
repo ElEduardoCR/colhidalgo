@@ -30,6 +30,8 @@ type Orden = "adeudo" | "nombre" | "antiguedad" | "ruta";
 
 export default function MorosidadPage() {
   const {
+    umbralMorosidad,
+    setUmbralMorosidad,
     cuentahabientes,
     addCuentahabiente,
     updateCuentahabiente,
@@ -42,6 +44,8 @@ export default function MorosidadPage() {
   const [soloSinConvenio, setSoloSinConvenio] = useState(false);
   const [orden, setOrden] = useState<Orden>("adeudo");
   const [visibles, setVisibles] = useState(POR_PAGINA);
+  const [umbralTexto, setUmbralTexto] = useState(String(umbralMorosidad));
+  const [soloMorosos, setSoloMorosos] = useState(true);
 
   const [editando, setEditando] = useState<string | null>(null);
   const [form, setForm] = useState<Omit<Cuentahabiente, "id">>(empty);
@@ -61,6 +65,7 @@ export default function MorosidadPage() {
   const filtrados = useMemo(() => {
     const q = filtro.trim().toLowerCase();
     const lista = cuentahabientes.filter((c) => {
+      if (soloMorosos && c.saldoVencido < umbralMorosidad) return false;
       if (tarifa && (c.tarifa ?? "") !== tarifa) return false;
       if (soloSinConvenio && conConvenioActivo.has(c.id)) return false;
       if (!q) return true;
@@ -82,7 +87,7 @@ export default function MorosidadPage() {
           (a.ruta ?? 0) - (b.ruta ?? 0) || (a.secuencia ?? 0) - (b.secuencia ?? 0),
       };
     return [...lista].sort(ordenar[orden]);
-  }, [cuentahabientes, filtro, tarifa, soloSinConvenio, conConvenioActivo, orden]);
+  }, [cuentahabientes, filtro, tarifa, soloSinConvenio, conConvenioActivo, orden, soloMorosos, umbralMorosidad]);
 
   const totalFiltrado = filtrados.reduce((s, c) => s + c.saldoVencido, 0);
   const sinConvenio = filtrados.filter((c) => !conConvenioActivo.has(c.id)).length;
@@ -121,9 +126,9 @@ export default function MorosidadPage() {
         eyebrow="Padron"
         title="Morosidad"
         subtitle={
-          fechaCorte
-            ? `Cuentas con saldo vencido segun el reporte de cortes del ${fmtDate(fechaCorte)}.`
-            : "Cuentas con saldo vencido."
+          `Padron de ${cuentahabientes.length} cuentas` +
+          (fechaCorte ? ` al corte del ${fmtDate(fechaCorte)}` : "") +
+          `. Se considera morosa una cuenta con adeudo desde ${currency(umbralMorosidad)}.`
         }
         actions={
           <button
@@ -381,6 +386,41 @@ export default function MorosidadPage() {
               <option value="nombre">Nombre (A-Z)</option>
               <option value="ruta">Ruta y secuencia</option>
             </select>
+            <button
+              type="button"
+              onClick={() => setSoloMorosos((v) => !v)}
+              className={
+                "rounded-full px-3.5 py-2 text-xs font-semibold transition " +
+                (soloMorosos
+                  ? "bg-marino-800 text-white"
+                  : "border border-pizarra-line bg-white text-pizarra-soft hover:border-aqua-300")
+              }
+              title="Muestra solo las cuentas que superan el umbral de morosidad"
+            >
+              Solo morosos
+            </button>
+            <label className="flex items-center gap-1.5 text-xs text-pizarra-mute">
+              desde
+              <input
+                type="number"
+                min={0}
+                step="50"
+                className="input w-24"
+                value={umbralTexto}
+                onChange={(e) => setUmbralTexto(e.target.value)}
+                onBlur={() => {
+                  const n = Number(umbralTexto);
+                  if (Number.isFinite(n) && n >= 0 && n !== umbralMorosidad) {
+                    setUmbralMorosidad(n).catch((err) =>
+                      alert("No se pudo guardar el umbral: " + (err?.message ?? err)),
+                    );
+                  } else {
+                    setUmbralTexto(String(umbralMorosidad));
+                  }
+                }}
+                title="Adeudo minimo para considerar morosa una cuenta"
+              />
+            </label>
             <button
               type="button"
               onClick={() => setSoloSinConvenio((v) => !v)}

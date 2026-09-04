@@ -64,8 +64,9 @@ export default function ConvenioDetallePage() {
     );
   }
 
+  const descuento = convenio.descuentoValor ?? 0;
   const restanteDeuda = Math.max(
-    convenio.deudaTotal - convenio.enganche - pagosResumen.total,
+    convenio.deudaTotal - descuento - convenio.enganche - pagosResumen.total,
     0,
   );
   const archivado = convenio.estado !== "activo";
@@ -176,7 +177,11 @@ export default function ConvenioDetallePage() {
         <Stat
           label="Deuda total"
           value={currency(convenio.deudaTotal)}
-          hint={`Enganche ${currency(convenio.enganche)}`}
+          hint={
+            `Enganche ${currency(convenio.enganche)}` +
+            (convenio.fechaEnganche ? ` el ${fmtDate(convenio.fechaEnganche)}` : "") +
+            (descuento > 0 ? ` · descuento ${currency(descuento)}` : "")
+          }
           tono="marino"
         />
         <Stat
@@ -445,7 +450,32 @@ export default function ConvenioDetallePage() {
             Segunda. Forma de pago
           </h3>
           <p>
-            EL CUENTAHABIENTE entrega en este acto la cantidad de{" "}
+            {descuento > 0 && (
+              <>
+                LA JUNTA otorga a EL CUENTAHABIENTE un descuento de{" "}
+                <strong className="text-marino-900">{currency(descuento)}</strong>
+                {convenio.descuentoTipo === "porcentaje" ? " sobre el adeudo" : ""}
+                , por lo que la cantidad a cubrir queda en{" "}
+                <strong className="text-marino-900">
+                  {currency(convenio.deudaTotal - descuento)}
+                </strong>
+                .{" "}
+              </>
+            )}
+            EL CUENTAHABIENTE
+            {convenio.fechaEnganche &&
+            convenio.fechaEnganche !== convenio.fechaCreacion ? (
+              <>
+                {" "}
+                se obliga a entregar el{" "}
+                <strong className="text-marino-900">
+                  {fmtDateLong(convenio.fechaEnganche)}
+                </strong>
+              </>
+            ) : (
+              " entrega en este acto"
+            )}{" "}
+            la cantidad de{" "}
             <strong className="text-marino-900">
               {currency(convenio.enganche)}
             </strong>{" "}

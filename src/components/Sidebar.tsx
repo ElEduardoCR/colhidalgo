@@ -9,6 +9,7 @@ import {
   IconCerrar,
   IconConvenio,
   IconGota,
+  IconImportar,
   IconMenu,
   IconMorosidad,
   IconNuevo,
@@ -19,6 +20,7 @@ import {
 const nav = [
   { href: "/", label: "Resumen", Icon: IconResumen },
   { href: "/morosidad", label: "Morosidad", Icon: IconMorosidad },
+  { href: "/importar", label: "Importar corte", Icon: IconImportar },
   { href: "/convenios", label: "Convenios", Icon: IconConvenio },
   { href: "/convenios/nuevo", label: "Nuevo convenio", Icon: IconNuevo },
   { href: "/calendario", label: "Calendario de pagos", Icon: IconCalendario },

@@ -6,7 +6,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/PageHeader";
 import { BuscadorCuenta } from "@/components/BuscadorCuenta";
-import { addPeriod, currency, fmtDate, todayISO } from "@/lib/format";
+import {
+  addPeriod,
+  calcularDescuento,
+  currency,
+  fmtDate,
+  todayISO,
+} from "@/lib/format";
+import type { TipoDescuento } from "@/lib/types";
 
 /** Plazos sugeridos para no capturar el numero de pagos a mano. */
 const PLAZOS = [3, 6, 9, 12, 18, 24];
@@ -23,6 +30,10 @@ function FormNuevoConvenio() {
 
   const [deudaTotal, setDeudaTotal] = useState<number>(cuenta?.saldoVencido ?? 0);
   const [enganche, setEnganche] = useState<number>(0);
+  // El enganche puede pagarse otro dia; el calendario corre desde esa fecha.
+  const [fechaEnganche, setFechaEnganche] = useState<string>(todayISO());
+  const [descuentoTipo, setDescuentoTipo] = useState<TipoDescuento | "">("");
+  const [descuentoValor, setDescuentoValor] = useState<number>(0);
   const [numeroPagos, setNumeroPagos] = useState<number>(6);
   const [periodicidad, setPeriodicidad] = useState<
     "semanal" | "quincenal" | "mensual"
@@ -40,7 +51,12 @@ function FormNuevoConvenio() {
 
   const [guardando, setGuardando] = useState(false);
 
-  const restante = Math.max(deudaTotal - enganche, 0);
+  const descuento = calcularDescuento(
+    deudaTotal,
+    descuentoTipo || undefined,
+    descuentoValor,
+  );
+  const restante = Math.max(deudaTotal - descuento - enganche, 0);
   const montoPago = useMemo(
     () => (numeroPagos > 0 ? Number((restante / numeroPagos).toFixed(2)) : 0),
     [restante, numeroPagos],
@@ -57,7 +73,13 @@ function FormNuevoConvenio() {
 
   const cambiarPeriodicidad = (p: typeof periodicidad) => {
     setPeriodicidad(p);
-    setFechaPrimerPago(addPeriod(todayISO(), p, 1));
+    setFechaPrimerPago(addPeriod(fechaEnganche, p, 1));
+  };
+
+  // Mover la fecha del enganche recorre todo el calendario de pagos.
+  const cambiarFechaEnganche = (f: string) => {
+    setFechaEnganche(f);
+    if (f) setFechaPrimerPago(addPeriod(f, periodicidad, 1));
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -79,6 +101,9 @@ function FormNuevoConvenio() {
         montoPago,
         periodicidad,
         fechaPrimerPago,
+        fechaEnganche,
+        descuentoTipo: descuentoTipo || undefined,
+        descuentoValor: descuento,
         responsable,
         observaciones,
         recordarDiaAntes,
@@ -155,6 +180,70 @@ function FormNuevoConvenio() {
                 value={enganche}
                 onChange={(e) => setEnganche(Number(e.target.value))}
               />
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="label mb-1">Descuento</div>
+              <div className="flex flex-wrap items-center gap-2">
+                {(
+                  [
+                    ["", "Sin descuento"],
+                    ["monto", "En pesos"],
+                    ["porcentaje", "En porcentaje"],
+                  ] as const
+                ).map(([k, l]) => (
+                  <button
+                    key={k || "sin"}
+                    type="button"
+                    onClick={() => {
+                      setDescuentoTipo(k);
+                      if (!k) setDescuentoValor(0);
+                    }}
+                    className={
+                      "rounded-full px-4 py-1.5 text-sm font-medium transition " +
+                      (descuentoTipo === k
+                        ? "bg-marino-800 text-white shadow-sm"
+                        : "border border-pizarra-line bg-white text-pizarra-soft hover:border-aqua-300 hover:text-marino-800")
+                    }
+                  >
+                    {l}
+                  </button>
+                ))}
+                {descuentoTipo && (
+                  <div className="relative">
+                    <input
+                      className="input w-32 pr-8"
+                      type="number"
+                      min={0}
+                      max={descuentoTipo === "porcentaje" ? 100 : deudaTotal}
+                      step="0.01"
+                      value={descuentoValor}
+                      onChange={(e) => setDescuentoValor(Number(e.target.value))}
+                      autoFocus
+                    />
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-pizarra-mute">
+                      {descuentoTipo === "porcentaje" ? "%" : "$"}
+                    </span>
+                  </div>
+                )}
+                {descuento > 0 && (
+                  <span className="chip-exito">− {currency(descuento)}</span>
+                )}
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="label mb-1">Fecha en que se paga el enganche</div>
+              <input
+                className="input md:w-64"
+                type="date"
+                value={fechaEnganche}
+                onChange={(e) => cambiarFechaEnganche(e.target.value)}
+              />
+              <p className="mt-1.5 text-xs text-pizarra-mute">
+                Puede ser distinta al dia del convenio. Los pagos se cuentan a
+                partir de esta fecha.
+              </p>
             </div>
 
             <div className="md:col-span-2">
@@ -301,8 +390,22 @@ function FormNuevoConvenio() {
                 <dt className="text-marino-200/80">Deuda</dt>
                 <dd>{currency(deudaTotal)}</dd>
               </div>
+              {descuento > 0 && (
+                <div className="flex justify-between">
+                  <dt className="text-marino-200/80">
+                    Descuento
+                    {descuentoTipo === "porcentaje" ? ` (${descuentoValor}%)` : ""}
+                  </dt>
+                  <dd className="text-aqua-300">− {currency(descuento)}</dd>
+                </div>
+              )}
               <div className="flex justify-between">
-                <dt className="text-marino-200/80">Enganche</dt>
+                <dt className="text-marino-200/80">
+                  Enganche
+                  <span className="block text-[11px] text-marino-200/60">
+                    {fmtDate(fechaEnganche)}
+                  </span>
+                </dt>
                 <dd>− {currency(enganche)}</dd>
               </div>
               <div className="flex justify-between border-t border-white/15 pt-2.5 font-medium text-white">

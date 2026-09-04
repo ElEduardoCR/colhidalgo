@@ -14,8 +14,12 @@ Junta Rural de Agua y Saneamiento de Col. Hidalgo.
 
 - **Resumen**: adeudo total del padron, cobertura bajo convenio, pagos del dia,
   pagos vencidos y mayores adeudos.
-- **Morosidad**: padron de cuentas con saldo vencido, con busqueda, filtros por
-  tarifa, orden por adeudo/antiguedad/ruta y alta, edicion y baja de cuentas.
+- **Morosidad**: el padron completo de cuentahabientes, con busqueda, filtros
+  por tarifa, orden por adeudo/antiguedad/ruta y edicion. Ser moroso es un
+  filtro por monto (umbral configurable desde la misma pantalla), no un alta o
+  una baja.
+- **Importar corte**: se sube el Excel semanal, se compara contra el corte
+  anterior y se detectan los pagos. Nada se guarda hasta que se revisa.
 - **Convenios**: alta con buscador de cuentahabiente (por nombre, numero de
   cuenta, domicilio o medidor, sin acentos y con varias palabras), listado con
   avance, detalle con calendario de pagos, reestructuracion y convenio oficial
@@ -24,6 +28,43 @@ Junta Rural de Agua y Saneamiento de Col. Hidalgo.
   llamada telefonica.
 - **Recordatorios**: avisos por WhatsApp un dia antes y el dia del pago.
 - **Archivo y auditoria**: historico de convenios completados o cancelados.
+
+## Actualizar el padron cada semana
+
+El flujo ya no es dar de alta y baja cuentas: se sube el reporte de cortes en
+**Importar corte** y la app concilia contra el corte anterior.
+
+### Como se detecta un pago
+
+Se usan dos senales del reporte:
+
+1. **La fecha de ultimo pago avanzo.** Es la senal confiable: en la prueba con
+   los cortes del 1 y el 4 de septiembre detecto los 93 pagos sin fallar uno.
+2. **El saldo bajo.** Da el monto, pero solo por si sola cuando entre los dos
+   cortes no se facturo.
+
+El problema es la facturacion mensual: al cruzarla, el saldo de casi todos
+**sube** aunque hayan pagado. Entre el corte del 24 de agosto y el del 1 de
+septiembre eso le paso a 240 cuentas, y 11 de ellas si habian pagado. Por eso el
+monto se calcula asi:
+
+```
+pago = saldo_anterior - saldo_nuevo + cargo_del_periodo
+```
+
+El `cargo_del_periodo` se estima por tarifa con la mediana de lo que subio a
+quienes **no** pagaron. Si esa mediana es ~0, la app concluye que no hubo
+facturacion y el monto pasa a ser una resta exacta.
+
+Los montos estimados se marcan como tales y se pueden corregir en la pantalla
+antes de aplicarlos. Un pago detectado por fecha pero sin baja de saldo llega en
+cero y hay que capturarlo a mano.
+
+### Convenios
+
+Si la cuenta tiene convenio activo, la importacion propone acreditar el pago a
+la siguiente letra pendiente y lo dice ("cubre la letra 3 de 6"). Se aplica solo
+si se marca la casilla: nada se mueve solo en un documento firmado.
 
 ## Uso en iPad
 
@@ -77,6 +118,7 @@ Las migraciones estan en `supabase/migrations/`, en orden cronologico:
 | `20260610130000_add_tarifa_and_real_data.sql` | Columna `tarifa`, telefono opcional |
 | `20260610140000_add_recordatorios.sql` | Preferencias de recordatorio |
 | `20260824120000_esquema_reporte_cortes.sql` | Campos del reporte de cortes y politicas de acceso |
+| `20260904120000_padron_completo_y_cortes.sql` | Padron completo, tablas `cortes` y `movimientos`, enganche con fecha, descuento y `configuracion` |
 
 El esquema de `cuentahabientes` sigue las columnas del **reporte de cortes** que
 emite el sistema de la Junta: `id_usuario`, `numero_cuenta`, `nombre`,

@@ -81,6 +81,14 @@ export const IconArchivo = (p: P) => (
   </Svg>
 );
 
+export const IconImportar = (p: P) => (
+  <Svg {...p}>
+    <path d="M20.6 15.4v3.2a1.8 1.8 0 0 1-1.8 1.8H5.2a1.8 1.8 0 0 1-1.8-1.8v-3.2" />
+    <path d="m7.8 9.4 4.2-4.2 4.2 4.2" />
+    <path d="M12 5.2v10.2" />
+  </Svg>
+);
+
 export const IconGota = ({ className }: P) => (
   <svg
     viewBox="0 0 24 24"

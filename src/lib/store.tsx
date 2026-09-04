@@ -10,8 +10,10 @@ import {
 } from "react";
 import type {
   Convenio,
+  Corte,
   Cuentahabiente,
   EstadoPago,
+  Movimiento,
   PagoConvenio,
 } from "./types";
 import { addPeriod, todayISO } from "./format";
@@ -20,8 +22,22 @@ import * as api from "./api";
 type State = {
   cuentahabientes: Cuentahabiente[];
   convenios: Convenio[];
+  cortes: Corte[];
+  movimientos: Movimiento[];
+  /** Adeudo minimo para considerar morosa una cuenta (MXN). */
+  umbralMorosidad: number;
   loading: boolean;
   error: string | null;
+};
+
+/** Todo lo que se guarda al confirmar una importacion de corte. */
+export type AplicacionCorte = {
+  corte: Corte;
+  /** Padron completo del archivo, ya mezclado con lo que habia. */
+  cuentas: Cuentahabiente[];
+  movimientos: Movimiento[];
+  /** Letras de convenio que se marcan pagadas con los pagos detectados. */
+  creditos: { convenioId: string; pagoId: string; fechaPago: string }[];
 };
 
 type Ctx = State & {
@@ -56,6 +72,9 @@ type Ctx = State & {
     fechaPago?: string,
     notas?: string,
   ) => Promise<void>;
+  setUmbralMorosidad: (n: number) => Promise<void>;
+  aplicarCorte: (a: AplicacionCorte) => Promise<void>;
+
   archivarConvenio: (id: string) => Promise<void>;
   cancelarConvenio: (id: string) => Promise<void>;
   eliminarConvenio: (id: string) => Promise<void>;
@@ -87,6 +106,9 @@ const nuevoFolio = (existentes: Convenio[]) => {
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [cuentahabientes, setCuentahabientes] = useState<Cuentahabiente[]>([]);
   const [convenios, setConvenios] = useState<Convenio[]>([]);
+  const [cortes, setCortes] = useState<Corte[]>([]);
+  const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
+  const [umbralMorosidad, setUmbral] = useState(500);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,12 +116,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      const [cs, cv] = await Promise.all([
+      const [cs, cv, ct, mv, cfg] = await Promise.all([
         api.getCuentahabientes(),
         api.getConvenios(),
+        api.getCortes(),
+        api.getMovimientos(),
+        api.getConfiguracion(),
       ]);
       setCuentahabientes(cs);
       setConvenios(cv);
+      setCortes(ct);
+      setMovimientos(mv);
+      const u = Number(cfg.umbral_morosidad);
+      if (Number.isFinite(u)) setUmbral(u);
     } catch (e: any) {
       setError(e?.message ?? "Error al conectar con la base de datos");
     } finally {
@@ -247,13 +276,43 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setConvenios((s) => s.filter((c) => c.id !== id));
   }, []);
 
+  const setUmbralMorosidad: Ctx["setUmbralMorosidad"] = useCallback(
+    async (n) => {
+      await api.setConfiguracion("umbral_morosidad", String(n));
+      setUmbral(n);
+    },
+    [],
+  );
+
+  /**
+   * Guarda una importacion completa: el corte, el padron actualizado, los
+   * movimientos revisados y las letras de convenio que se acreditan.
+   */
+  const aplicarCorte: Ctx["aplicarCorte"] = useCallback(
+    async ({ corte, cuentas, movimientos: movs, creditos }) => {
+      await api.insertCorte(corte);
+      await api.upsertCuentahabientes(cuentas);
+      if (movs.length) await api.insertMovimientos(movs);
+      for (const c of creditos) {
+        await api.updatePagoDB(c.pagoId, "pagado", c.fechaPago);
+      }
+      await refresh();
+    },
+    [refresh],
+  );
+
   const value = useMemo<Ctx>(
     () => ({
       cuentahabientes,
       convenios,
+      cortes,
+      movimientos,
+      umbralMorosidad,
       loading,
       error,
       refresh,
+      setUmbralMorosidad,
+      aplicarCorte,
       addCuentahabiente,
       updateCuentahabiente,
       removeCuentahabiente,
@@ -267,9 +326,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [
       cuentahabientes,
       convenios,
+      cortes,
+      movimientos,
+      umbralMorosidad,
       loading,
       error,
       refresh,
+      setUmbralMorosidad,
+      aplicarCorte,
       addCuentahabiente,
       updateCuentahabiente,
       removeCuentahabiente,

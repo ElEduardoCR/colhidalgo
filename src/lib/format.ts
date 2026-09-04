@@ -58,3 +58,14 @@ export const diaSemanaNombre = (dow: number) =>
     "viernes",
     "sabado",
   ][dow] ?? "";
+
+/** Descuento en pesos, venga como monto fijo o como porcentaje de la deuda. */
+export const calcularDescuento = (
+  deuda: number,
+  tipo?: "monto" | "porcentaje",
+  valor?: number,
+) => {
+  if (!tipo || !valor || valor <= 0) return 0;
+  const bruto = tipo === "porcentaje" ? (deuda * valor) / 100 : valor;
+  return Math.round(Math.min(bruto, deuda) * 100) / 100;
+};

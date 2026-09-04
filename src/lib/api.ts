@@ -1,5 +1,12 @@
 import { supabase } from "./supabase";
-import type { Convenio, Cuentahabiente, EstadoPago, PagoConvenio } from "./types";
+import type {
+  Convenio,
+  Corte,
+  Cuentahabiente,
+  EstadoPago,
+  Movimiento,
+  PagoConvenio,
+} from "./types";
 
 // ===== Mapeos fila <-> objeto =====
 const rowToCuenta = (r: any): Cuentahabiente => ({
@@ -20,6 +27,7 @@ const rowToCuenta = (r: any): Cuentahabiente => ({
   consumo: r.consumo ?? undefined,
   observaciones: r.observaciones ?? "",
   fechaCorte: r.fecha_corte ?? undefined,
+  activo: r.activo ?? true,
 });
 
 const cuentaToRow = (c: Cuentahabiente) => ({
@@ -40,6 +48,7 @@ const cuentaToRow = (c: Cuentahabiente) => ({
   consumo: c.consumo ?? null,
   observaciones: c.observaciones || null,
   fecha_corte: c.fechaCorte || null,
+  activo: c.activo ?? true,
 });
 
 const rowToPago = (r: any): PagoConvenio => ({
@@ -121,6 +130,9 @@ export async function getConvenios(): Promise<Convenio[]> {
     montoPago: parseFloat(r.monto_pago),
     periodicidad: r.periodicidad,
     fechaPrimerPago: r.fecha_primer_pago,
+    fechaEnganche: r.fecha_enganche ?? undefined,
+    descuentoTipo: r.descuento_tipo ?? undefined,
+    descuentoValor: r.descuento_valor ? parseFloat(r.descuento_valor) : 0,
     responsable: r.responsable,
     observaciones: r.observaciones ?? undefined,
     estado: r.estado,
@@ -142,6 +154,9 @@ const convenioToRow = (c: Convenio) => ({
   monto_pago: c.montoPago,
   periodicidad: c.periodicidad,
   fecha_primer_pago: c.fechaPrimerPago,
+  fecha_enganche: c.fechaEnganche || null,
+  descuento_tipo: c.descuentoTipo || null,
+  descuento_valor: c.descuentoValor ?? 0,
   responsable: c.responsable,
   observaciones: c.observaciones || null,
   estado: c.estado,
@@ -168,6 +183,12 @@ export async function updateConvenioFields(id: string, patch: Partial<Convenio>)
   if (patch.periodicidad !== undefined) row.periodicidad = patch.periodicidad;
   if (patch.fechaPrimerPago !== undefined)
     row.fecha_primer_pago = patch.fechaPrimerPago;
+  if (patch.fechaEnganche !== undefined)
+    row.fecha_enganche = patch.fechaEnganche || null;
+  if (patch.descuentoTipo !== undefined)
+    row.descuento_tipo = patch.descuentoTipo || null;
+  if (patch.descuentoValor !== undefined)
+    row.descuento_valor = patch.descuentoValor;
   if (patch.observaciones !== undefined)
     row.observaciones = patch.observaciones || null;
   if (patch.estado !== undefined) row.estado = patch.estado;
@@ -213,5 +234,129 @@ export async function updatePagoDB(
 
 export async function deleteConvenio(id: string) {
   const { error } = await supabase.from("convenios").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ===== PADRON EN BLOQUE =====
+/**
+ * Guarda el padron completo empatando por numero de cuenta. Se manda por
+ * tandas porque son cientos de filas y una sola peticion se vuelve pesada.
+ */
+export async function upsertCuentahabientes(cuentas: Cuentahabiente[]) {
+  const TANDA = 200;
+  for (let i = 0; i < cuentas.length; i += TANDA) {
+    const { error } = await supabase
+      .from("cuentahabientes")
+      .upsert(cuentas.slice(i, i + TANDA).map(cuentaToRow), {
+        onConflict: "numero_cuenta",
+      });
+    if (error) throw error;
+  }
+}
+
+// ===== CORTES =====
+const rowToCorte = (r: any): Corte => ({
+  id: r.id,
+  fechaCorte: r.fecha_corte,
+  archivo: r.archivo ?? undefined,
+  totalCuentas: r.total_cuentas ?? 0,
+  totalAdeudo: parseFloat(r.total_adeudo ?? 0),
+  altas: r.altas ?? 0,
+  pagosDetectados: r.pagos_detectados ?? 0,
+  montoDetectado: parseFloat(r.monto_detectado ?? 0),
+  notas: r.notas ?? undefined,
+  importadoEn: r.importado_en ?? undefined,
+});
+
+export async function getCortes(): Promise<Corte[]> {
+  const { data, error } = await supabase
+    .from("cortes")
+    .select("*")
+    .order("fecha_corte", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(rowToCorte);
+}
+
+export async function insertCorte(c: Corte) {
+  const { error } = await supabase.from("cortes").insert({
+    id: c.id,
+    fecha_corte: c.fechaCorte,
+    archivo: c.archivo || null,
+    total_cuentas: c.totalCuentas,
+    total_adeudo: c.totalAdeudo,
+    altas: c.altas,
+    pagos_detectados: c.pagosDetectados,
+    monto_detectado: c.montoDetectado,
+    notas: c.notas || null,
+  });
+  if (error) throw error;
+}
+
+// ===== MOVIMIENTOS (pagos detectados) =====
+const rowToMovimiento = (r: any): Movimiento => ({
+  id: r.id,
+  corteId: r.corte_id,
+  cuentahabienteId: r.cuentahabiente_id,
+  fechaPago: r.fecha_pago ?? undefined,
+  saldoAnterior: parseFloat(r.saldo_anterior ?? 0),
+  saldoNuevo: parseFloat(r.saldo_nuevo ?? 0),
+  cargoEstimado: parseFloat(r.cargo_estimado ?? 0),
+  montoDetectado: parseFloat(r.monto_detectado ?? 0),
+  montoConfirmado:
+    r.monto_confirmado == null ? undefined : parseFloat(r.monto_confirmado),
+  origen: r.origen,
+  estado: r.estado,
+  pagoConvenioId: r.pago_convenio_id ?? undefined,
+  notas: r.notas ?? undefined,
+});
+
+const movimientoToRow = (m: Movimiento) => ({
+  id: m.id,
+  corte_id: m.corteId,
+  cuentahabiente_id: m.cuentahabienteId,
+  fecha_pago: m.fechaPago || null,
+  saldo_anterior: m.saldoAnterior,
+  saldo_nuevo: m.saldoNuevo,
+  cargo_estimado: m.cargoEstimado,
+  monto_detectado: m.montoDetectado,
+  monto_confirmado: m.montoConfirmado ?? null,
+  origen: m.origen,
+  estado: m.estado,
+  pago_convenio_id: m.pagoConvenioId || null,
+  notas: m.notas || null,
+});
+
+export async function getMovimientos(): Promise<Movimiento[]> {
+  const { data, error } = await supabase
+    .from("movimientos")
+    .select("*")
+    .order("fecha_pago", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(rowToMovimiento);
+}
+
+export async function insertMovimientos(ms: Movimiento[]) {
+  const TANDA = 200;
+  for (let i = 0; i < ms.length; i += TANDA) {
+    const { error } = await supabase
+      .from("movimientos")
+      .upsert(ms.slice(i, i + TANDA).map(movimientoToRow), {
+        onConflict: "corte_id,cuentahabiente_id",
+      });
+    if (error) throw error;
+  }
+}
+
+// ===== CONFIGURACION =====
+export async function getConfiguracion(): Promise<Record<string, string>> {
+  const { data, error } = await supabase.from("configuracion").select("*");
+  if (error) throw error;
+  return Object.fromEntries((data ?? []).map((r: any) => [r.clave, r.valor]));
+}
+
+export async function setConfiguracion(clave: string, valor: string) {
+  const { error } = await supabase
+    .from("configuracion")
+    .upsert({ clave, valor, updated_at: new Date().toISOString() });
   if (error) throw error;
 }

@@ -13,9 +13,12 @@ import {
 } from "@/components/icons";
 
 export default function HomePage() {
-  const { cuentahabientes, convenios } = useStore();
+  const { cuentahabientes, convenios, umbralMorosidad, cortes } = useStore();
 
-  const totalAdeudo = cuentahabientes.reduce((s, c) => s + c.saldoVencido, 0);
+  // El padron trae a todos; morosos son los que superan el umbral configurado.
+  const morosos = cuentahabientes.filter((c) => c.saldoVencido >= umbralMorosidad);
+  const totalAdeudo = morosos.reduce((s, c) => s + c.saldoVencido, 0);
+  const adeudoPadron = cuentahabientes.reduce((s, c) => s + c.saldoVencido, 0);
   const activos = convenios.filter((c) => c.estado === "activo");
   const completados = convenios.filter((c) => c.estado === "completado");
 
@@ -36,18 +39,16 @@ export default function HomePage() {
 
   // Cuentas con convenio: cuanto del adeudo ya esta bajo un acuerdo de pago.
   const conConvenio = new Set(activos.map((c) => c.cuentahabienteId));
-  const adeudoEnConvenio = cuentahabientes
+  const adeudoEnConvenio = morosos
     .filter((c) => conConvenio.has(c.id))
     .reduce((s, c) => s + c.saldoVencido, 0);
   const cobertura = totalAdeudo
     ? Math.round((adeudoEnConvenio / totalAdeudo) * 100)
     : 0;
 
-  const mayores = [...cuentahabientes]
+  const mayores = [...morosos]
     .sort((a, b) => b.saldoVencido - a.saldoVencido)
     .slice(0, 5);
-
-  const fechaCorte = cuentahabientes.find((c) => c.fechaCorte)?.fechaCorte;
 
   return (
     <>
@@ -55,8 +56,8 @@ export default function HomePage() {
         eyebrow="Panel general"
         title="Resumen de la cartera"
         subtitle={
-          fechaCorte
-            ? `Padron de rezago al corte del ${fmtDate(fechaCorte)}.`
+          cortes.length
+            ? `Padron al corte del ${fmtDate(cortes[0].fechaCorte)}.`
             : "Estado de morosidad y convenios de pago."
         }
         actions={
@@ -83,7 +84,9 @@ export default function HomePage() {
               {currency(totalAdeudo)}
             </div>
             <div className="mt-2 text-sm text-marino-200/80">
-              {cuentahabientes.length} cuentas con saldo vencido
+              {morosos.length} cuentas morosas (desde {currency(umbralMorosidad)})
+              {" · "}
+              {cuentahabientes.length} en el padron por {currency(adeudoPadron)}
             </div>
           </div>
 

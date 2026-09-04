@@ -20,6 +20,8 @@ export type Cuentahabiente = {
   observaciones?: string;
   /** Fecha del reporte de cortes del que provienen los datos. */
   fechaCorte?: string;
+  /** false cuando la cuenta dejo de aparecer en el padron. */
+  activo?: boolean;
 };
 
 /** Tarifas del padron de la Junta. */
@@ -45,6 +47,41 @@ export type PagoConvenio = {
 
 export type EstadoConvenio = "activo" | "completado" | "cancelado";
 
+/** Un archivo de reporte de cortes ya importado. */
+export type Corte = {
+  id: string;
+  fechaCorte: string;
+  archivo?: string;
+  totalCuentas: number;
+  totalAdeudo: number;
+  altas: number;
+  pagosDetectados: number;
+  montoDetectado: number;
+  notas?: string;
+  importadoEn?: string;
+};
+
+export type EstadoMovimiento = "propuesto" | "confirmado" | "descartado";
+
+/** Pago detectado al comparar un corte contra el anterior. */
+export type Movimiento = {
+  id: string;
+  corteId: string;
+  cuentahabienteId: string;
+  fechaPago?: string;
+  saldoAnterior: number;
+  saldoNuevo: number;
+  cargoEstimado: number;
+  montoDetectado: number;
+  montoConfirmado?: number;
+  origen: "ambos" | "fecha" | "saldo";
+  estado: EstadoMovimiento;
+  pagoConvenioId?: string;
+  notas?: string;
+};
+
+export type TipoDescuento = "monto" | "porcentaje";
+
 export type Convenio = {
   id: string;
   folio: string;
@@ -56,6 +93,10 @@ export type Convenio = {
   montoPago: number;
   periodicidad: "semanal" | "quincenal" | "mensual";
   fechaPrimerPago: string;
+  /** Fecha real en que se paga el enganche; el calendario corre desde aqui. */
+  fechaEnganche?: string;
+  descuentoTipo?: TipoDescuento;
+  descuentoValor?: number;
   responsable: string;
   observaciones?: string;
   estado: EstadoConvenio;
