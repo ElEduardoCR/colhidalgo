@@ -41,11 +41,27 @@ export default function ImportarPage() {
 
   /** Convenio activo de una cuenta y su siguiente letra sin pagar. */
   const siguienteLetra = useMemo(() => {
-    const m = new Map<string, { convenio: Convenio; pagoId: string; numero: number; monto: number }>();
+    const m = new Map<
+      string,
+      {
+        convenio: Convenio;
+        pagoId: string;
+        numero: number;
+        monto: number;
+        fechaProgramada: string;
+      }
+    >();
     for (const c of convenios) {
       if (c.estado !== "activo") continue;
       const p = c.pagos.find((x) => x.estado !== "pagado");
-      if (p) m.set(c.cuentahabienteId, { convenio: c, pagoId: p.id, numero: p.numero, monto: p.monto });
+      if (p)
+        m.set(c.cuentahabienteId, {
+          convenio: c,
+          pagoId: p.id,
+          numero: p.numero,
+          monto: p.monto,
+          fechaProgramada: p.fechaProgramada,
+        });
     }
     return m;
   }, [convenios]);
@@ -582,7 +598,16 @@ function TablaPagos({
   pagos: PagoDetectado[];
   decisiones: Record<string, Decision>;
   setDec: (id: string, patch: Partial<Decision>) => void;
-  siguienteLetra: Map<string, { convenio: Convenio; pagoId: string; numero: number; monto: number }>;
+  siguienteLetra: Map<
+    string,
+    {
+      convenio: Convenio;
+      pagoId: string;
+      numero: number;
+      monto: number;
+      fechaProgramada: string;
+    }
+  >;
 }) {
   if (!pagos.length)
     return (
@@ -660,22 +685,60 @@ function TablaPagos({
                 </td>
                 <td className="py-3 pr-4">
                   {letra ? (
-                    <label className="inline-flex cursor-pointer items-start gap-2 text-xs text-marino-800">
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 accent-aqua-500"
-                        checked={d?.acreditar ?? false}
-                        onChange={(e) =>
-                          setDec(p.cuentahabienteId, { acreditar: e.target.checked })
-                        }
-                      />
-                      <span>
-                        Cubre letra {letra.numero}/{letra.convenio.numeroPagos}
-                        <span className="block text-[10px] text-pizarra-mute">
-                          {letra.convenio.folio} · {currency(letra.monto)}
-                        </span>
-                      </span>
-                    </label>
+                    (() => {
+                      const pagado = d?.monto ?? 0;
+                      const dif = Math.round((pagado - letra.monto) * 100) / 100;
+                      const atraso =
+                        p.fechaPago && p.fechaPago > letra.fechaProgramada
+                          ? Math.round(
+                              (new Date(p.fechaPago + "T12:00:00").getTime() -
+                                new Date(
+                                  letra.fechaProgramada + "T12:00:00",
+                                ).getTime()) /
+                                86400000,
+                            )
+                          : 0;
+                      return (
+                        <label className="inline-flex cursor-pointer items-start gap-2 text-xs text-marino-800">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-4 w-4 accent-aqua-500"
+                            checked={d?.acreditar ?? false}
+                            onChange={(e) =>
+                              setDec(p.cuentahabienteId, {
+                                acreditar: e.target.checked,
+                              })
+                            }
+                          />
+                          <span>
+                            Cubre letra {letra.numero}/{letra.convenio.numeroPagos}
+                            <span className="block text-[10px] text-pizarra-mute">
+                              {letra.convenio.folio} · acordado{" "}
+                              {currency(letra.monto)} · vencia{" "}
+                              {fmtDate(letra.fechaProgramada)}
+                            </span>
+                            <span className="mt-1 flex flex-wrap gap-1">
+                              {Math.abs(dif) < 0.01 ? (
+                                <span className="chip-exito">monto exacto</span>
+                              ) : dif < 0 ? (
+                                <span className="chip-alerta">
+                                  faltan {currency(-dif)}
+                                </span>
+                              ) : (
+                                <span className="chip-aqua">
+                                  paga {currency(dif)} de mas
+                                </span>
+                              )}
+                              {atraso > 0 && (
+                                <span className="chip-aviso">
+                                  {atraso} d de atraso
+                                </span>
+                              )}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })()
                   ) : (
                     <span className="text-xs text-pizarra-mute">sin convenio</span>
                   )}

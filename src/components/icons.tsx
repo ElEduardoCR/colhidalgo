@@ -81,6 +81,15 @@ export const IconArchivo = (p: P) => (
   </Svg>
 );
 
+export const IconCortes = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 20V9.6" />
+    <path d="M9.4 20V4.4" />
+    <path d="M14.8 20v-7.2" />
+    <path d="M20.2 20V7.2" />
+  </Svg>
+);
+
 export const IconImportar = (p: P) => (
   <Svg {...p}>
     <path d="M20.6 15.4v3.2a1.8 1.8 0 0 1-1.8 1.8H5.2a1.8 1.8 0 0 1-1.8-1.8v-3.2" />

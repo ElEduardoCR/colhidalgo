@@ -80,8 +80,22 @@ hace contra lo que esta en la base.
 ### Convenios
 
 Si la cuenta tiene convenio activo, la importacion propone acreditar el pago a
-la siguiente letra pendiente y lo dice ("cubre la letra 3 de 6"). Se aplica solo
-si se marca la casilla: nada se mueve solo en un documento firmado.
+la siguiente letra pendiente y lo dice ("cubre la letra 3 de 6"). Ademas compara
+contra lo pactado y avisa si el monto no cuadra ("faltan $120.00") y si el pago
+llego tarde ("4 d de atraso"). Se aplica solo si se marca la casilla: nada se
+mueve solo en un documento firmado.
+
+### Detalle de cortes
+
+La pantalla **Detalle de cortes** resume cada periodo:
+
+- cuanto se cobro y como se movio el adeudo del padron;
+- **quien pago**, separando a quien venia moroso de quien estaba al corriente
+  (se juzga por el saldo que traia *antes* de pagar), y cuantos morosos salieron
+  de la morosidad con ese pago;
+- desglose por tarifa y cuantos montos fueron exactos contra estimados;
+- **cumplimiento de convenios**: letras acreditadas con su diferencia contra lo
+  acordado y su atraso, y letras ya vencidas sin pagar.
 
 ## Uso en iPad
 

@@ -1,10 +1,11 @@
-type Tono = "marino" | "aqua" | "exito" | "alerta";
+type Tono = "marino" | "aqua" | "exito" | "alerta" | "aviso";
 
 const tonos: Record<Tono, { barra: string; valor: string }> = {
   marino: { barra: "bg-marino-800", valor: "text-marino-900" },
   aqua: { barra: "bg-aqua-500", valor: "text-marino-900" },
   exito: { barra: "bg-exito", valor: "text-exito-ink" },
   alerta: { barra: "bg-alerta", valor: "text-alerta-ink" },
+  aviso: { barra: "bg-aviso", valor: "text-aviso-ink" },
 };
 
 export function Stat({
