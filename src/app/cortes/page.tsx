@@ -6,7 +6,8 @@ import { useStore } from "@/lib/store";
 import { PageHeader } from "@/components/PageHeader";
 import { Stat } from "@/components/Stat";
 import { currency, fmtDate } from "@/lib/format";
-import { resumirCorte } from "@/lib/resumenCorte";
+import { resumirCorte, type PagoDetalle } from "@/lib/resumenCorte";
+import { IconBuscar } from "@/components/icons";
 
 export default function CortesPage() {
   const { cortes, movimientos, cuentahabientes, convenios, umbralMorosidad } =
@@ -406,6 +407,257 @@ export default function CortesPage() {
           </div>
         )}
       </section>
+
+      <TablaPagosDelCorte pagos={r.detalle} umbral={umbralMorosidad} />
     </>
+  );
+}
+
+const POR_PAGINA = 10;
+
+/** Rango de paginas a mostrar, con elipsis cuando son muchas. */
+function paginasVisibles(actual: number, total: number): (number | "…")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const ps = new Set<number>([1, total, actual]);
+  if (actual > 1) ps.add(actual - 1);
+  if (actual < total) ps.add(actual + 1);
+  if (actual <= 3) [2, 3, 4].forEach((n) => ps.add(n));
+  if (actual >= total - 2) [total - 3, total - 2, total - 1].forEach((n) => ps.add(n));
+  const orden = [...ps].filter((n) => n >= 1 && n <= total).sort((a, b) => a - b);
+  const out: (number | "…")[] = [];
+  orden.forEach((n, i) => {
+    if (i > 0 && n - (orden[i - 1] as number) > 1) out.push("…");
+    out.push(n);
+  });
+  return out;
+}
+
+function TablaPagosDelCorte({
+  pagos,
+  umbral,
+}: {
+  pagos: PagoDetalle[];
+  umbral: number;
+}) {
+  const [q, setQ] = useState("");
+  const [cond, setCond] = useState<"todos" | "moroso" | "corriente">("todos");
+  const [pagina, setPagina] = useState(1);
+
+  const filtrados = useMemo(() => {
+    const term = q
+      .trim()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    return pagos.filter((p) => {
+      if (cond === "moroso" && !p.eraMoroso) return false;
+      if (cond === "corriente" && p.eraMoroso) return false;
+      if (!term) return true;
+      const heno = `${p.nombre} ${p.numeroCuenta} ${p.idUsuario ?? ""} ${p.direccion} ${p.noMedidor}`
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+      return term.split(/\s+/).every((w) => heno.includes(w));
+    });
+  }, [pagos, q, cond]);
+
+  const totalPaginas = Math.max(Math.ceil(filtrados.length / POR_PAGINA), 1);
+  const actual = Math.min(pagina, totalPaginas);
+  const visibles = filtrados.slice((actual - 1) * POR_PAGINA, actual * POR_PAGINA);
+  const suma = filtrados.reduce((s, p) => s + p.monto, 0);
+
+  const ir = (n: number) => setPagina(Math.min(Math.max(n, 1), totalPaginas));
+
+  if (!pagos.length) return null;
+
+  return (
+    <section className="card mt-6 p-5">
+      <h2 className="text-base font-semibold text-marino-900">
+        Detalle de los pagos
+      </h2>
+      <p className="mb-5 mt-1 text-xs text-pizarra-mute">
+        Uno por uno, los {pagos.length} pagos detectados en este corte.
+      </p>
+
+      {/* ---- Filtros ---- */}
+      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="relative flex-1 lg:max-w-sm">
+          <IconBuscar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-pizarra-mute" />
+          <input
+            className="input pl-9"
+            placeholder="Buscar por nombre, cuenta, id o domicilio"
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPagina(1);
+            }}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {(
+            [
+              ["todos", `Todos (${pagos.length})`],
+              ["moroso", `Morosos (${pagos.filter((p) => p.eraMoroso).length})`],
+              [
+                "corriente",
+                `Al corriente (${pagos.filter((p) => !p.eraMoroso).length})`,
+              ],
+            ] as const
+          ).map(([k, l]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => {
+                setCond(k);
+                setPagina(1);
+              }}
+              className={
+                "rounded-full px-3.5 py-2 text-xs font-semibold transition " +
+                (cond === k
+                  ? "bg-marino-800 text-white"
+                  : "border border-pizarra-line bg-white text-pizarra-soft hover:border-aqua-300")
+              }
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ---- Tabla ---- */}
+      <div className="-mx-5 overflow-x-auto px-5">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-pizarra-line">
+              <th className="th">Id</th>
+              <th className="th">Cuenta</th>
+              <th className="th">Cuentahabiente</th>
+              <th className="th">Tarifa</th>
+              <th className="th">Fecha</th>
+              <th className="th text-right">Saldo antes</th>
+              <th className="th text-right">Saldo después</th>
+              <th className="th text-right">Pago</th>
+              <th className="th">Condición</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibles.map((p) => (
+              <tr key={p.cuentahabienteId} className="tr-row">
+                <td className="py-3 pr-4 tabular-nums text-pizarra-mute">
+                  {p.idUsuario ?? "—"}
+                </td>
+                <td className="whitespace-nowrap py-3 pr-4 font-mono text-xs text-pizarra-soft">
+                  {p.numeroCuenta}
+                </td>
+                <td className="py-3 pr-4">
+                  <div className="font-medium text-marino-900">{p.nombre}</div>
+                  <div className="text-xs text-pizarra-mute">{p.direccion}</div>
+                </td>
+                <td className="py-3 pr-4">
+                  {p.tarifa ? (
+                    <span className="chip-aqua">{p.tarifa}</span>
+                  ) : (
+                    <span className="text-pizarra-mute">—</span>
+                  )}
+                </td>
+                <td className="whitespace-nowrap py-3 pr-4 text-pizarra-soft">
+                  {p.fechaPago ? fmtDate(p.fechaPago) : "—"}
+                </td>
+                <td className="py-3 pr-4 text-right tabular-nums text-pizarra-soft">
+                  {currency(p.saldoAnterior)}
+                </td>
+                <td className="py-3 pr-4 text-right tabular-nums text-pizarra-soft">
+                  {currency(p.saldoNuevo)}
+                </td>
+                <td className="py-3 pr-4 text-right">
+                  <div className="tabular-nums font-semibold text-marino-900">
+                    {currency(p.monto)}
+                  </div>
+                  {!p.exacto && (
+                    <div className="text-[10px] text-aviso-ink">estimado</div>
+                  )}
+                </td>
+                <td className="py-3 pr-0">
+                  <div className="flex flex-wrap gap-1">
+                    {p.eraMoroso ? (
+                      <span className="chip-alerta">venia moroso</span>
+                    ) : (
+                      <span className="chip-aqua">al corriente</span>
+                    )}
+                    {p.salioDeMorosidad && (
+                      <span className="chip-exito">salio de morosidad</span>
+                    )}
+                    {p.folioConvenio && (
+                      <span className="chip-line">{p.folioConvenio}</span>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {!filtrados.length && (
+              <tr>
+                <td colSpan={9} className="py-10 text-center text-pizarra-mute">
+                  Ningun pago coincide con la busqueda.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ---- Paginacion ---- */}
+      {filtrados.length > 0 && (
+        <div className="mt-5 flex flex-col items-center justify-between gap-3 border-t border-pizarra-line pt-4 sm:flex-row">
+          <div className="text-xs text-pizarra-mute">
+            {(actual - 1) * POR_PAGINA + 1}–
+            {Math.min(actual * POR_PAGINA, filtrados.length)} de{" "}
+            {filtrados.length} pago(s) ·{" "}
+            <span className="font-semibold text-marino-900">
+              {currency(suma)}
+            </span>
+          </div>
+
+          {totalPaginas > 1 && (
+            <div className="flex flex-wrap items-center gap-1">
+              <button
+                className="accion border border-pizarra-line text-pizarra-soft hover:border-aqua-300 disabled:opacity-40"
+                onClick={() => ir(actual - 1)}
+                disabled={actual === 1}
+              >
+                ‹ Anterior
+              </button>
+              {paginasVisibles(actual, totalPaginas).map((n, i) =>
+                n === "…" ? (
+                  <span key={`e${i}`} className="px-1.5 text-xs text-pizarra-mute">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={n}
+                    onClick={() => ir(n)}
+                    aria-current={n === actual ? "page" : undefined}
+                    className={
+                      "min-w-[2.25rem] rounded-lg px-2 py-1.5 text-xs font-semibold transition " +
+                      (n === actual
+                        ? "bg-marino-800 text-white"
+                        : "border border-pizarra-line bg-white text-pizarra-soft hover:border-aqua-300 hover:text-marino-800")
+                    }
+                  >
+                    {n}
+                  </button>
+                ),
+              )}
+              <button
+                className="accion border border-pizarra-line text-pizarra-soft hover:border-aqua-300 disabled:opacity-40"
+                onClick={() => ir(actual + 1)}
+                disabled={actual === totalPaginas}
+              >
+                Siguiente ›
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
   );
 }

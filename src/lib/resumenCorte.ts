@@ -34,6 +34,28 @@ export type LetraVencida = {
   pagoEnEsteCorte: boolean;
 };
 
+/** Una linea del detalle de pagos del corte. */
+export type PagoDetalle = {
+  cuentahabienteId: string;
+  idUsuario?: number;
+  numeroCuenta: string;
+  nombre: string;
+  direccion: string;
+  tarifa: string;
+  noMedidor: string;
+  fechaPago?: string;
+  saldoAnterior: number;
+  saldoNuevo: number;
+  monto: number;
+  /** Traia adeudo por encima del umbral antes de pagar. */
+  eraMoroso: boolean;
+  salioDeMorosidad: boolean;
+  /** El monto salio de una resta limpia, no de una estimacion. */
+  exacto: boolean;
+  origen: Movimiento["origen"];
+  folioConvenio?: string;
+};
+
 export type ResumenCorte = {
   corte: Corte;
   anterior?: Corte;
@@ -60,6 +82,8 @@ export type ResumenCorte = {
     acreditadas: LetraAcreditada[];
     vencidas: LetraVencida[];
   };
+  /** Una fila por pago confirmado, para la tabla del detalle. */
+  detalle: PagoDetalle[];
 };
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -190,5 +214,31 @@ export function resumirCorte(
       descartados: delCorte.filter((m) => m.estado === "descartado").length,
     },
     convenios: { acreditadas, vencidas },
+    detalle: confirmados
+      .map((m): PagoDetalle => {
+        const c = porId.get(m.cuentahabienteId);
+        const conv = m.pagoConvenioId
+          ? convenios.find((x) => x.pagos.some((p) => p.id === m.pagoConvenioId))
+          : undefined;
+        return {
+          cuentahabienteId: m.cuentahabienteId,
+          idUsuario: c?.idUsuario,
+          numeroCuenta: c?.numeroCuenta ?? "—",
+          nombre: c?.nombre ?? "—",
+          direccion: c?.direccion ?? "",
+          tarifa: c?.tarifa ?? "",
+          noMedidor: c?.noMedidor ?? "",
+          fechaPago: m.fechaPago,
+          saldoAnterior: m.saldoAnterior,
+          saldoNuevo: m.saldoNuevo,
+          monto: monto(m),
+          eraMoroso: m.saldoAnterior >= umbral,
+          salioDeMorosidad: m.saldoAnterior >= umbral && m.saldoNuevo < umbral,
+          exacto: m.cargoEstimado === 0,
+          origen: m.origen,
+          folioConvenio: conv?.folio,
+        };
+      })
+      .sort((a, b) => b.monto - a.monto),
   };
 }

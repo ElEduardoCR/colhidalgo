@@ -95,7 +95,10 @@ La pantalla **Detalle de cortes** resume cada periodo:
   de la morosidad con ese pago;
 - desglose por tarifa y cuantos montos fueron exactos contra estimados;
 - **cumplimiento de convenios**: letras acreditadas con su diferencia contra lo
-  acordado y su atraso, y letras ya vencidas sin pagar.
+  acordado y su atraso, y letras ya vencidas sin pagar;
+- **detalle de los pagos**, uno por uno, con id, cuenta, nombre, domicilio,
+  tarifa, saldo antes y despues, y monto. Se pagina de 10 en 10 y se puede
+  buscar o filtrar por quien venia moroso.
 
 ## Uso en iPad
 
