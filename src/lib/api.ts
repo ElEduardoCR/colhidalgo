@@ -360,3 +360,65 @@ export async function setConfiguracion(clave: string, valor: string) {
     .upsert({ clave, valor, updated_at: new Date().toISOString() });
   if (error) throw error;
 }
+
+// ===== FOTO DE CADA CORTE =====
+/** Guarda todas las filas del archivo tal como se importaron. */
+export async function insertCorteDetalle(
+  corteId: string,
+  filas: {
+    numeroCuenta: string;
+    idUsuario?: number;
+    nombre: string;
+    direccion: string;
+    noMedidor?: string;
+    ruta?: number;
+    secuencia?: number;
+    ultimoPago?: string;
+    tarifa?: string;
+    adeudo: number;
+    mesesAdeudo: number;
+    consumo?: number;
+  }[],
+) {
+  const TANDA = 200;
+  for (let i = 0; i < filas.length; i += TANDA) {
+    const { error } = await supabase.from("corte_detalle").upsert(
+      filas.slice(i, i + TANDA).map((f) => ({
+        corte_id: corteId,
+        numero_cuenta: f.numeroCuenta,
+        id_usuario: f.idUsuario ?? null,
+        nombre: f.nombre,
+        direccion: f.direccion || null,
+        no_medidor: f.noMedidor || null,
+        ruta: f.ruta ?? null,
+        secuencia: f.secuencia ?? null,
+        ultimo_pago: f.ultimoPago || null,
+        tarifa: f.tarifa || null,
+        saldo_vencido: f.adeudo,
+        meses_adeudo: f.mesesAdeudo,
+        consumo: f.consumo ?? null,
+      })),
+      { onConflict: "corte_id,numero_cuenta" },
+    );
+    if (error) throw error;
+  }
+}
+
+/**
+ * Revierte por completo la importacion mas reciente. Todo ocurre dentro de una
+ * funcion de Postgres para que sea atomico.
+ */
+export async function deshacerCorteDB(corteId: string) {
+  const { data, error } = await supabase.rpc("deshacer_corte", {
+    p_corte_id: corteId,
+  });
+  if (error) throw error;
+  return data as {
+    corte_deshecho: string;
+    regreso_a: string;
+    cuentas_restauradas: number;
+    cuentas_eliminadas: number;
+    letras_revertidas: number;
+    movimientos_borrados: number;
+  };
+}

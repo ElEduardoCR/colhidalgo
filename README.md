@@ -60,6 +60,23 @@ Los montos estimados se marcan como tales y se pueden corregir en la pantalla
 antes de aplicarlos. Un pago detectado por fecha pero sin baja de saldo llega en
 cero y hay que capturarlo a mano.
 
+### Que se guarda de cada corte
+
+De cada importacion se guarda **el archivo completo**, no solo lo que cambio
+(`corte_detalle`, una fila por cuenta). Eso permite:
+
+- reconstruir como estaba el padron en cualquier corte pasado;
+- **deshacer la ultima importacion** si se subio el archivo equivocado.
+
+El deshacer esta en el historial de la pantalla de importacion, solo en el corte
+mas reciente, y hace todo en una sola transaccion (`deshacer_corte` en Postgres):
+regresa el padron al corte anterior, borra los pagos detectados, devuelve a
+pendiente las letras de convenio que se hayan acreditado y elimina las altas que
+solo existian por ese archivo. Nunca borra una cuenta que ya tenga convenio.
+
+Nada de esto depende de tener a la mano el Excel anterior: la comparacion se
+hace contra lo que esta en la base.
+
 ### Convenios
 
 Si la cuenta tiene convenio activo, la importacion propone acreditar el pago a
@@ -119,6 +136,7 @@ Las migraciones estan en `supabase/migrations/`, en orden cronologico:
 | `20260610140000_add_recordatorios.sql` | Preferencias de recordatorio |
 | `20260824120000_esquema_reporte_cortes.sql` | Campos del reporte de cortes y politicas de acceso |
 | `20260904120000_padron_completo_y_cortes.sql` | Padron completo, tablas `cortes` y `movimientos`, enganche con fecha, descuento y `configuracion` |
+| `20260904150000_detalle_de_corte_y_deshacer.sql` | Tabla `corte_detalle` (foto de cada corte) y funcion `deshacer_corte` |
 
 El esquema de `cuentahabientes` sigue las columnas del **reporte de cortes** que
 emite el sistema de la Junta: `id_usuario`, `numero_cuenta`, `nombre`,

@@ -17,7 +17,8 @@ type Pestana = "pagos" | "altas" | "cambios" | "ausentes";
 type Decision = { incluir: boolean; monto: number; acreditar: boolean };
 
 export default function ImportarPage() {
-  const { cuentahabientes, convenios, cortes, aplicarCorte } = useStore();
+  const { cuentahabientes, convenios, cortes, aplicarCorte, deshacerCorte } =
+    useStore();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [archivo, setArchivo] = useState<string>("");
@@ -31,6 +32,7 @@ export default function ImportarPage() {
   const [pestana, setPestana] = useState<Pestana>("pagos");
   const [decisiones, setDecisiones] = useState<Record<string, Decision>>({});
   const [listo, setListo] = useState<string | null>(null);
+  const [deshaciendo, setDeshaciendo] = useState<string | null>(null);
 
   const yaImportado = useMemo(
     () => (conc ? cortes.some((c) => c.fechaCorte === conc.fechaCorte) : false),
@@ -168,7 +170,28 @@ export default function ImportarPage() {
         montoDetectado: Math.round(totalIncluido * 100) / 100,
       };
 
-      const payload: AplicacionCorte = { corte, cuentas, movimientos, creditos };
+      const detalle = filas.filas.map((f) => ({
+        numeroCuenta: f.numeroCuenta,
+        idUsuario: f.idUsuario,
+        nombre: f.nombre,
+        direccion: f.direccion,
+        noMedidor: f.noMedidor,
+        ruta: f.ruta,
+        secuencia: f.secuencia,
+        ultimoPago: f.ultimoPago,
+        tarifa: f.tarifa,
+        adeudo: f.adeudo,
+        mesesAdeudo: mesesDesde(f.ultimoPago, conc.fechaCorte),
+        consumo: f.consumo,
+      }));
+
+      const payload: AplicacionCorte = {
+        corte,
+        cuentas,
+        detalle,
+        movimientos,
+        creditos,
+      };
       await aplicarCorte(payload);
 
       setListo(
@@ -437,21 +460,103 @@ export default function ImportarPage() {
       {/* ---- Historial ---- */}
       {!conc && cortes.length > 0 && (
         <div className="card p-5">
-          <h2 className="mb-4 text-sm font-semibold text-marino-900">
+          <h2 className="text-sm font-semibold text-marino-900">
             Cortes importados
           </h2>
-          <TablaSimple
-            vacio=""
-            encabezados={["Fecha", "Cuentas", "Adeudo", "Altas", "Pagos", "Monto"]}
-            filas={cortes.map((c) => [
-              fmtDate(c.fechaCorte),
-              String(c.totalCuentas),
-              currency(c.totalAdeudo),
-              String(c.altas),
-              String(c.pagosDetectados),
-              currency(c.montoDetectado),
-            ])}
-          />
+          <p className="mb-4 mt-1 text-xs text-pizarra-mute">
+            De cada corte se guarda el archivo completo, asi que el mas reciente
+            se puede deshacer: el padron regresa al corte anterior, se borran sus
+            pagos y las letras de convenio vuelven a pendiente.
+          </p>
+          <div className="-mx-5 overflow-x-auto px-5">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-pizarra-line">
+                  <th className="th">Fecha</th>
+                  <th className="th">Archivo</th>
+                  <th className="th text-right">Cuentas</th>
+                  <th className="th text-right">Adeudo</th>
+                  <th className="th text-right">Altas</th>
+                  <th className="th text-right">Pagos</th>
+                  <th className="th text-right">Monto</th>
+                  <th className="th text-right">Accion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cortes.map((c, i) => (
+                  <tr key={c.id} className="tr-row">
+                    <td className="whitespace-nowrap py-3 pr-4 font-medium text-marino-900">
+                      {fmtDate(c.fechaCorte)}
+                    </td>
+                    <td className="py-3 pr-4 text-xs text-pizarra-mute">
+                      {c.archivo ?? "—"}
+                    </td>
+                    <td className="py-3 pr-4 text-right tabular-nums text-pizarra-soft">
+                      {c.totalCuentas}
+                    </td>
+                    <td className="py-3 pr-4 text-right tabular-nums text-pizarra-soft">
+                      {currency(c.totalAdeudo)}
+                    </td>
+                    <td className="py-3 pr-4 text-right tabular-nums text-pizarra-soft">
+                      {c.altas}
+                    </td>
+                    <td className="py-3 pr-4 text-right tabular-nums text-pizarra-soft">
+                      {c.pagosDetectados}
+                    </td>
+                    <td className="py-3 pr-4 text-right tabular-nums font-medium text-marino-900">
+                      {currency(c.montoDetectado)}
+                    </td>
+                    <td className="py-3 text-right">
+                      {i === 0 && cortes.length > 1 ? (
+                        <button
+                          className="btn-danger text-xs"
+                          disabled={deshaciendo === c.id}
+                          onClick={async () => {
+                            if (
+                              !confirm(
+                                `Deshacer la importacion del ${fmtDate(c.fechaCorte)}?\n\n` +
+                                  "El padron regresa al corte anterior, se borran sus pagos " +
+                                  "detectados y las letras de convenio que se hayan acreditado " +
+                                  "vuelven a pendiente.",
+                              )
+                            )
+                              return;
+                            setDeshaciendo(c.id);
+                            setError(null);
+                            try {
+                              const r = await deshacerCorte(c.id);
+                              setListo(
+                                `Importacion del ${fmtDate(c.fechaCorte)} deshecha: ` +
+                                  `${r.cuentas_restauradas} cuenta(s) restauradas, ` +
+                                  `${r.movimientos_borrados} pago(s) borrados` +
+                                  (r.letras_revertidas
+                                    ? `, ${r.letras_revertidas} letra(s) de convenio de vuelta a pendiente`
+                                    : "") +
+                                  (r.cuentas_eliminadas
+                                    ? `, ${r.cuentas_eliminadas} alta(s) eliminada(s)`
+                                    : "") +
+                                  ".",
+                              );
+                            } catch (e: any) {
+                              setError(
+                                "No se pudo deshacer: " + (e?.message ?? e),
+                              );
+                            } finally {
+                              setDeshaciendo(null);
+                            }
+                          }}
+                        >
+                          {deshaciendo === c.id ? "Deshaciendo…" : "Deshacer"}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-pizarra-mute">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </>

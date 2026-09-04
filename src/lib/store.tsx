@@ -35,6 +35,8 @@ export type AplicacionCorte = {
   corte: Corte;
   /** Padron completo del archivo, ya mezclado con lo que habia. */
   cuentas: Cuentahabiente[];
+  /** Foto del archivo tal cual, para poder deshacer y auditar. */
+  detalle: Parameters<typeof api.insertCorteDetalle>[1];
   movimientos: Movimiento[];
   /** Letras de convenio que se marcan pagadas con los pagos detectados. */
   creditos: { convenioId: string; pagoId: string; fechaPago: string }[];
@@ -74,6 +76,12 @@ type Ctx = State & {
   ) => Promise<void>;
   setUmbralMorosidad: (n: number) => Promise<void>;
   aplicarCorte: (a: AplicacionCorte) => Promise<void>;
+  deshacerCorte: (id: string) => Promise<{
+    cuentas_restauradas: number;
+    cuentas_eliminadas: number;
+    letras_revertidas: number;
+    movimientos_borrados: number;
+  }>;
 
   archivarConvenio: (id: string) => Promise<void>;
   cancelarConvenio: (id: string) => Promise<void>;
@@ -289,14 +297,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
    * movimientos revisados y las letras de convenio que se acreditan.
    */
   const aplicarCorte: Ctx["aplicarCorte"] = useCallback(
-    async ({ corte, cuentas, movimientos: movs, creditos }) => {
+    async ({ corte, cuentas, detalle, movimientos: movs, creditos }) => {
       await api.insertCorte(corte);
+      // La foto va antes que nada: si algo falla despues, el deshacer existe.
+      await api.insertCorteDetalle(corte.id, detalle);
       await api.upsertCuentahabientes(cuentas);
       if (movs.length) await api.insertMovimientos(movs);
       for (const c of creditos) {
         await api.updatePagoDB(c.pagoId, "pagado", c.fechaPago);
       }
       await refresh();
+    },
+    [refresh],
+  );
+
+  const deshacerCorte: Ctx["deshacerCorte"] = useCallback(
+    async (id) => {
+      const r = await api.deshacerCorteDB(id);
+      await refresh();
+      return r;
     },
     [refresh],
   );
@@ -313,6 +332,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       refresh,
       setUmbralMorosidad,
       aplicarCorte,
+      deshacerCorte,
       addCuentahabiente,
       updateCuentahabiente,
       removeCuentahabiente,
@@ -334,6 +354,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       refresh,
       setUmbralMorosidad,
       aplicarCorte,
+      deshacerCorte,
       addCuentahabiente,
       updateCuentahabiente,
       removeCuentahabiente,
